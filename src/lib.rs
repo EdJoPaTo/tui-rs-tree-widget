@@ -105,6 +105,22 @@ impl<'a> TreeItem<'a> {
         }
     }
 
+    pub fn child(&self, index: usize) -> Option<&Self> {
+        if index < self.children.len() {
+            Some(&self.children[index])
+        } else {
+            None
+        }
+    }
+
+    pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
+        if index < self.children.len() {
+            Some(&mut self.children[index])
+        } else {
+            None
+        }
+    }
+
     pub fn height(&self) -> usize {
         self.text.height()
     }
