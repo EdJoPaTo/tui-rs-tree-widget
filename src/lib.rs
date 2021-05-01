@@ -50,8 +50,8 @@ impl TreeState {
     }
 
     /// Open a tree node.
-    /// Return `true` if the node was closed and has been opened.
-    /// Return `false` if the node was already open.
+    /// Returns `true` if the node was closed and has been opened.
+    /// Returns `false` if the node was already open.
     pub fn open(&mut self, identifier: TreeIdentifierVec) -> bool {
         if identifier.is_empty() {
             false
