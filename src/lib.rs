@@ -61,8 +61,8 @@ impl TreeState {
     }
 
     /// Close a tree node.
-    /// Return `true` if the node was open and has been closed.
-    /// Return `false` if the node was already closed.
+    /// Returns `true` if the node was open and has been closed.
+    /// Returns `false` if the node was already closed.
     pub fn close(&mut self, identifier: TreeIdentifier) -> bool {
         self.opened.remove(identifier)
     }
