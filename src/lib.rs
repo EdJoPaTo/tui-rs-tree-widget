@@ -116,11 +116,7 @@ impl<'a> TreeItem<'a> {
     }
 
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
-        if index < self.children.len() {
-            Some(&mut self.children[index])
-        } else {
-            None
-        }
+        self.children.get_mut(index)
     }
 
     pub fn height(&self) -> usize {
