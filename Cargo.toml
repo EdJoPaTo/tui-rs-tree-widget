@@ -16,7 +16,7 @@ include = ["src/**/*", "readme.md"]
 unicode-width = "0.1"
 
 [dependencies.tui]
-version = "0.14"
+version = "0.15"
 default-features = false
 
 [dev-dependencies]
