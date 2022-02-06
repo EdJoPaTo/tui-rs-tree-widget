@@ -60,11 +60,11 @@ impl TreeState {
 
     /// Toggles a tree node.
     /// If the node is in opened then it calls `close()`. Otherwise it calls `open()`.
-    pub fn toggle(&mut self) -> bool {
+    pub fn toggle(&mut self) {
         if self.opened.contains(&self.selected()) {
-            self.close(&self.selected())
+            self.close(&self.selected());
         } else {
-            self.open(self.selected())
+            self.open(self.selected());
         }
     }
 
