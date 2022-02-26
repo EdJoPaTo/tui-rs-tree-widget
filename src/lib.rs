@@ -124,6 +124,7 @@ impl<'a> TreeItem<'a> {
         self.text.height()
     }
 
+    #[must_use]
     pub const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
@@ -163,26 +164,31 @@ impl<'a> Tree<'a> {
     }
 
     #[allow(clippy::missing_const_for_fn)]
+    #[must_use]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
         self
     }
 
+    #[must_use]
     pub const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
+    #[must_use]
     pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
 
+    #[must_use]
     pub const fn highlight_style(mut self, style: Style) -> Self {
         self.highlight_style = style;
         self
     }
 
+    #[must_use]
     pub const fn start_corner(mut self, corner: Corner) -> Self {
         self.start_corner = corner;
         self
