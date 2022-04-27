@@ -18,8 +18,8 @@ jobs:
         toolchain:
           - stable
         os:
-          - ubuntu-latest
-          - macos-latest
+          - ubuntu-20.04
+          - macos-11
         clippyargs:
           - -D clippy::pedantic -D warnings
         features:
@@ -27,18 +27,18 @@ jobs:
         include:
           # Check future versions and maybe get some glances on soon to be lints
           - toolchain: beta
-            os: ubuntu-latest
+            os: ubuntu-20.04
             features: --all-features
             clippyargs: -W clippy::pedantic -W clippy::nursery -W clippy::cargo
           - toolchain: nightly
-            os: ubuntu-latest
+            os: ubuntu-20.04
             features: --all-features
             clippyargs: -W clippy::pedantic
 
           # Check the minimum supported Rust version (MSRV).
           # Sometimes old rust versions don't yet have the lints (allow unknown) or don't have fixes in lints (false positives -> don't error, just warn).
           # When a certain distro is a target look up its version: https://repology.org/project/rust/versions
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             toolchain: 1.56.1
             clippyargs: -A unknown-lints
             features: --all-features
@@ -86,18 +86,18 @@ jobs:
       matrix:
         include:
           - triple: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - triple: arm-unknown-linux-gnueabihf
-            os: ubuntu-latest
-          - triple: armv7-unknown-linux-gnueabihf
-            os: ubuntu-latest
+            os: ubuntu-20.04
           - triple: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-20.04
+          - triple: armv7-unknown-linux-gnueabihf
+            os: ubuntu-20.04
+          - triple: arm-unknown-linux-gnueabihf
+            os: ubuntu-20.04
 
           - triple: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-11
           - triple: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-11
     steps:
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
