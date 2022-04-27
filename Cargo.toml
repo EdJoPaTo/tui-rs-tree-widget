@@ -20,9 +20,7 @@ version = "0.18"
 default-features = false
 
 [dev-dependencies]
-termion = "1"
+crossterm = "0.23"
 
 [dev-dependencies.tui]
 version = "0.18"
-default-features = false
-features = ["termion"]

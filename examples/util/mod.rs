@@ -1,5 +1,3 @@
-pub mod event;
-
 use tui_tree_widget::{flatten, get_identifier_without_leaf, TreeItem, TreeState};
 
 pub struct StatefulTree<'a> {

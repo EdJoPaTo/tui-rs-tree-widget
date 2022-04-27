@@ -1,13 +1,14 @@
 mod util;
 
-use crate::util::{
-    event::{Event, Events},
-    StatefulTree,
+use crate::util::StatefulTree;
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use std::{error::Error, io};
-use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
-    backend::TermionBackend,
+    backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders},
     Terminal,
@@ -40,17 +41,33 @@ impl<'a> App<'a> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Terminal initialization
-    let stdout = io::stdout().into_raw_mode()?;
-    let stdout = MouseTerminal::from(stdout);
-    let stdout = AlternateScreen::from(stdout);
-    let backend = TermionBackend::new(stdout);
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let events = Events::new();
-
     // App
-    let mut app = App::new();
+    let app = App::new();
+    let res = run_app(&mut terminal, app);
 
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err);
+    }
+
+    Ok(())
+}
+
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
         terminal.draw(|f| {
             let area = f.size();
@@ -71,31 +88,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             f.render_stateful_widget(items, area, &mut app.tree.state);
         })?;
 
-        match events.next()? {
-            Event::Input(input) => match input {
-                Key::Char('q') => {
-                    break;
-                }
-                Key::Left => {
-                    app.tree.close();
-                }
-                Key::Right => {
-                    app.tree.open();
-                }
-                Key::Char('\n') => {
-                    app.tree.toggle();
-                }
-                Key::Down => {
-                    app.tree.next();
-                }
-                Key::Up => {
-                    app.tree.previous();
-                }
+        if let Event::Key(key) = event::read()? {
+            match key.code {
+                KeyCode::Char('q') => return Ok(()),
+                KeyCode::Left => app.tree.close(),
+                KeyCode::Right => app.tree.open(),
+                KeyCode::Char('\n') => app.tree.toggle(),
+                KeyCode::Down => app.tree.next(),
+                KeyCode::Up => app.tree.previous(),
                 _ => {}
-            },
-            Event::Tick => {}
+            }
         }
     }
-
-    Ok(())
 }
