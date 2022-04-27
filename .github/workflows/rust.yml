@@ -20,6 +20,7 @@ jobs:
         os:
           - ubuntu-20.04
           - macos-11
+          - windows-2022
         clippyargs:
           - -D clippy::pedantic -D warnings
         features:
@@ -98,6 +99,11 @@ jobs:
             os: macos-11
           - triple: aarch64-apple-darwin
             os: macos-11
+
+          - triple: x86_64-pc-windows-msvc
+            os: windows-2022
+          - triple: aarch64-pc-windows-msvc
+            os: windows-2022
     steps:
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
