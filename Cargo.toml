@@ -9,6 +9,7 @@ authors = ["EdJoPaTo <tui-tree-widget-rust-crate@edjopato.de>"]
 edition = "2018"
 rust-version = "1.56.1"
 keywords = ["tui", "terminal", "tree", "widget"]
+categories = ["command-line-interface"]
 include = ["src/**/*", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
