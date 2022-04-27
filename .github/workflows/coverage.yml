@@ -15,7 +15,7 @@ jobs:
           override: true
           toolchain: stable
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
@@ -24,7 +24,7 @@ jobs:
           out-type: Html
 
       - name: Upload Report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: report
           path: tarpaulin-report.html
