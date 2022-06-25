@@ -94,6 +94,8 @@ jobs:
             os: ubuntu-20.04
           - triple: arm-unknown-linux-gnueabihf
             os: ubuntu-20.04
+          - triple: riscv64gc-unknown-linux-gnu
+            os: ubuntu-20.04
 
           - triple: x86_64-apple-darwin
             os: macos-11
