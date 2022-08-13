@@ -21,7 +21,7 @@ version = "0.18"
 default-features = false
 
 [dev-dependencies]
-crossterm = "0.23"
+crossterm = "0.25"
 
 [dev-dependencies.tui]
 version = "0.18"
