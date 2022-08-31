@@ -68,12 +68,18 @@ impl TreeState {
 
     /// Toggles a tree node.
     /// If the node is in opened then it calls `close()`. Otherwise it calls `open()`.
-    pub fn toggle(&mut self) {
-        if self.opened.contains(&self.selected()) {
-            self.close(&self.selected());
+    pub fn toggle(&mut self, identifier: TreeIdentifierVec) {
+        if self.opened.contains(&identifier) {
+            self.close(&identifier);
         } else {
-            self.open(self.selected());
+            self.open(identifier);
         }
+    }
+
+    /// Toggles the currently selected tree node.
+    /// See also [`toggle`](TreeState::toggle)
+    pub fn toggle_selected(&mut self) {
+        self.toggle(self.selected());
     }
 
     pub fn close_all(&mut self) {

@@ -60,6 +60,6 @@ impl<'a> StatefulTree<'a> {
     }
 
     pub fn toggle(&mut self) {
-        self.state.toggle();
+        self.state.toggle_selected();
     }
 }
