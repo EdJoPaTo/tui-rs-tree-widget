@@ -1,6 +1,7 @@
 #![allow(clippy::must_use_candidate)]
 
 use std::collections::HashSet;
+
 use tui::buffer::Buffer;
 use tui::layout::{Corner, Rect};
 use tui::style::Style;
@@ -11,8 +12,8 @@ use unicode_width::UnicodeWidthStr;
 mod flatten;
 mod identifier;
 
-pub use flatten::{flatten, Flattened};
-pub use identifier::{
+pub use crate::flatten::{flatten, Flattened};
+pub use crate::identifier::{
     get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
 };
 
