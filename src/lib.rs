@@ -85,6 +85,52 @@ impl TreeState {
     pub fn close_all(&mut self) {
         self.opened.clear();
     }
+
+    /// Handles the up arrow key.
+    /// Moves up in the current depth or to its parent.
+    pub fn key_up(&mut self, items: &[TreeItem]) {
+        let visible = flatten(&self.get_all_opened(), items);
+        let current_identifier = self.selected();
+        let current_index = visible
+            .iter()
+            .position(|o| o.identifier == current_identifier);
+        let new_index = current_index.map_or(0, |current_index| {
+            current_index.saturating_sub(1).min(visible.len() - 1)
+        });
+        let new_identifier = visible[new_index].identifier.clone();
+        self.select(new_identifier);
+    }
+
+    /// Handles the down arrow key.
+    /// Moves down in the current depth or into a child node.
+    pub fn key_down(&mut self, items: &[TreeItem]) {
+        let visible = flatten(&self.get_all_opened(), items);
+        let current_identifier = self.selected();
+        let current_index = visible
+            .iter()
+            .position(|o| o.identifier == current_identifier);
+        let new_index = current_index.map_or(0, |current_index| {
+            current_index.saturating_add(1).min(visible.len() - 1)
+        });
+        let new_identifier = visible[new_index].identifier.clone();
+        self.select(new_identifier);
+    }
+
+    /// Handles the left arrow key.
+    /// Closes the currently selected or moves to its parent.
+    pub fn key_left(&mut self) {
+        let selected = self.selected();
+        if !self.close(&selected) {
+            let (head, _) = get_identifier_without_leaf(&selected);
+            self.select(head);
+        }
+    }
+
+    /// Handles the right arrow key.
+    /// Openes the currently selected.
+    pub fn key_right(&mut self) {
+        self.open(self.selected());
+    }
 }
 
 #[derive(Debug, Clone)]

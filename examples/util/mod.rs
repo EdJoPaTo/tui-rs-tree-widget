@@ -1,4 +1,4 @@
-use tui_tree_widget::{flatten, get_identifier_without_leaf, TreeItem, TreeState};
+use tui_tree_widget::{TreeItem, TreeState};
 
 pub struct StatefulTree<'a> {
     pub state: TreeState,
@@ -21,42 +21,20 @@ impl<'a> StatefulTree<'a> {
         }
     }
 
-    fn move_up_down(&mut self, down: bool) {
-        let visible = flatten(&self.state.get_all_opened(), &self.items);
-        let current_identifier = self.state.selected();
-        let current_index = visible
-            .iter()
-            .position(|o| o.identifier == current_identifier);
-        let new_index = current_index.map_or(0, |current_index| {
-            if down {
-                current_index.saturating_add(1)
-            } else {
-                current_index.saturating_sub(1)
-            }
-            .min(visible.len() - 1)
-        });
-        let new_identifier = visible.get(new_index).unwrap().identifier.clone();
-        self.state.select(new_identifier);
+    pub fn down(&mut self) {
+        self.state.key_down(&self.items);
     }
 
-    pub fn next(&mut self) {
-        self.move_up_down(true);
+    pub fn up(&mut self) {
+        self.state.key_up(&self.items);
     }
 
-    pub fn previous(&mut self) {
-        self.move_up_down(false);
+    pub fn left(&mut self) {
+        self.state.key_left();
     }
 
-    pub fn close(&mut self) {
-        let selected = self.state.selected();
-        if !self.state.close(&selected) {
-            let (head, _) = get_identifier_without_leaf(&selected);
-            self.state.select(head);
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.state.open(self.state.selected());
+    pub fn right(&mut self) {
+        self.state.key_right();
     }
 
     pub fn toggle(&mut self) {
