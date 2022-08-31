@@ -91,11 +91,13 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
         if let Event::Key(key) = event::read()? {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
+                KeyCode::Char('\n' | ' ') => app.tree.toggle(),
                 KeyCode::Left => app.tree.left(),
                 KeyCode::Right => app.tree.right(),
-                KeyCode::Char('\n') => app.tree.toggle(),
                 KeyCode::Down => app.tree.down(),
                 KeyCode::Up => app.tree.up(),
+                KeyCode::Home => app.tree.first(),
+                KeyCode::End => app.tree.last(),
                 _ => {}
             }
         }

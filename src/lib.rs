@@ -86,6 +86,21 @@ impl TreeState {
         self.opened.clear();
     }
 
+    /// Select the first node.
+    pub fn select_first(&mut self) {
+        self.select(vec![0]);
+    }
+
+    /// Select the last node.
+    pub fn select_last(&mut self, items: &[TreeItem]) {
+        let visible = flatten(&self.get_all_opened(), items);
+        let new_identifier = visible
+            .last()
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
+        self.select(new_identifier);
+    }
+
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     pub fn key_up(&mut self, items: &[TreeItem]) {

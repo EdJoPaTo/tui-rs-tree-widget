@@ -21,6 +21,14 @@ impl<'a> StatefulTree<'a> {
         }
     }
 
+    pub fn first(&mut self) {
+        self.state.select_first();
+    }
+
+    pub fn last(&mut self) {
+        self.state.select_last(&self.items);
+    }
+
     pub fn down(&mut self) {
         self.state.key_down(&self.items);
     }
