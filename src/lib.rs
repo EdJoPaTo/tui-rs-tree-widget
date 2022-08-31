@@ -19,11 +19,19 @@ pub use identifier::{
 #[derive(Debug, Default, Clone)]
 pub struct TreeState {
     offset: usize,
-    selected: TreeIdentifierVec,
     opened: HashSet<TreeIdentifierVec>,
+    selected: TreeIdentifierVec,
 }
 
 impl TreeState {
+    pub const fn get_offset(&self) -> usize {
+        self.offset
+    }
+
+    pub fn get_all_opened(&self) -> Vec<TreeIdentifierVec> {
+        self.opened.iter().cloned().collect()
+    }
+
     pub fn selected(&self) -> Vec<usize> {
         self.selected.clone()
     }
@@ -70,14 +78,6 @@ impl TreeState {
 
     pub fn close_all(&mut self) {
         self.opened.clear();
-    }
-
-    pub fn get_all_opened(&self) -> Vec<TreeIdentifierVec> {
-        self.opened.iter().cloned().collect()
-    }
-
-    pub const fn get_offset(&self) -> usize {
-        self.offset
     }
 }
 
