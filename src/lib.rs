@@ -180,6 +180,10 @@ impl<'a> TreeItem<'a> {
         }
     }
 
+    pub fn children(&self) -> &[TreeItem] {
+        &self.children
+    }
+
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
