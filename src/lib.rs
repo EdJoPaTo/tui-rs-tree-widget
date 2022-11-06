@@ -273,14 +273,13 @@ impl<'a> StatefulWidget for Tree<'a> {
     #[allow(clippy::too_many_lines)]
     fn render(mut self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         buf.set_style(area, self.style);
-        let area = match self.block.take() {
-            Some(b) => {
-                let inner_area = b.inner(area);
-                b.render(area, buf);
-                inner_area
-            }
-            None => area,
-        };
+
+        // Get the inner area inside a possible block, otherwise use the full area
+        let area = self.block.take().map_or(area, |b| {
+            let inner_area = b.inner(area);
+            b.render(area, buf);
+            inner_area
+        });
 
         if area.width < 1 || area.height < 1 {
             return;
