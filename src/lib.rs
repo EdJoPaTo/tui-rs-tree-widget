@@ -17,6 +17,14 @@ pub use crate::identifier::{
     get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
 };
 
+/// Keeps the state of what is currently selected and what was opened in a [`Tree`]
+///
+/// # Example
+///
+/// ```
+/// # use tui_tree_widget::TreeState;
+/// let mut state = TreeState::default();
+/// ```
 #[derive(Debug, Default, Clone)]
 pub struct TreeState {
     offset: usize,
@@ -149,6 +157,17 @@ impl TreeState {
     }
 }
 
+/// One item inside a [`Tree`]
+///
+/// Can zero or more `children`.
+///
+/// # Example
+///
+/// ```
+/// # use tui_tree_widget::TreeItem;
+/// let a = TreeItem::new_leaf("leaf");
+/// let b = TreeItem::new("root", vec![a]);
+/// ```
 #[derive(Debug, Clone)]
 pub struct TreeItem<'a> {
     text: Text<'a>,
@@ -207,6 +226,33 @@ impl<'a> TreeItem<'a> {
     }
 }
 
+/// A `Tree` which can be rendered
+///
+/// # Example
+///
+/// ```
+/// # use tui_tree_widget::{Tree, TreeItem, TreeState};
+/// # use tui::backend::TestBackend;
+/// # use tui::Terminal;
+/// # use tui::widgets::{Block, Borders};
+/// # fn main() -> std::io::Result<()> {
+/// #     let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
+/// let mut state = TreeState::default();
+///
+/// let item = TreeItem::new_leaf("leaf");
+/// let items = vec![item];
+///
+/// terminal.draw(|f| {
+///     let area = f.size();
+///
+///     let tree_widget = Tree::new(items.clone())
+///         .block(Block::default().borders(Borders::ALL).title("Tree Widget"));
+///
+///     f.render_stateful_widget(tree_widget, area, &mut state);
+/// })?;
+/// #     Ok(())
+/// # }
+/// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a> {
     block: Option<Block<'a>>,

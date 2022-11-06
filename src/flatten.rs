@@ -14,6 +14,7 @@ impl<'a> Flattened<'a> {
     }
 }
 
+/// Get a flat list of all visible [`TreeItem`s](TreeItem)
 pub fn flatten<'a>(opened: &[TreeIdentifierVec], items: &'a [TreeItem<'a>]) -> Vec<Flattened<'a>> {
     internal(opened, items, &[])
 }
