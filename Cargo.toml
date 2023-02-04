@@ -17,5 +17,5 @@ tui = { version = "0.19", default-features = false }
 unicode-width = "0.1"
 
 [dev-dependencies]
-crossterm = "0.25"
+crossterm = "0.26"
 tui = "0.19"
