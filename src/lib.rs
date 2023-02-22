@@ -152,7 +152,7 @@ impl TreeState {
     }
 
     /// Handles the right arrow key.
-    /// Openes the currently selected.
+    /// Opens the currently selected.
     pub fn key_right(&mut self) {
         self.open(self.selected());
     }
