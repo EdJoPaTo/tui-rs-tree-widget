@@ -1,4 +1,5 @@
 #![allow(clippy::must_use_candidate)]
+#![forbid(unsafe_code)]
 
 use std::collections::HashSet;
 
