@@ -114,6 +114,10 @@ impl TreeState {
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     pub fn key_up(&mut self, items: &[TreeItem]) {
+        if items.is_empty() {
+            return;
+        }
+
         let visible = flatten(&self.get_all_opened(), items);
         let current_identifier = self.selected();
         let current_index = visible
@@ -129,6 +133,10 @@ impl TreeState {
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
     pub fn key_down(&mut self, items: &[TreeItem]) {
+        if items.is_empty() {
+            return;
+        }
+
         let visible = flatten(&self.get_all_opened(), items);
         let current_identifier = self.selected();
         let current_index = visible
