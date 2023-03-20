@@ -122,7 +122,10 @@ impl TreeState {
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_sub(1).min(visible.len() - 1)
         });
-        let new_identifier = visible[new_index].identifier.clone();
+        let new_identifier = visible
+            .get(new_index)
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
         self.select(new_identifier);
     }
 
@@ -137,7 +140,10 @@ impl TreeState {
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_add(1).min(visible.len() - 1)
         });
-        let new_identifier = visible[new_index].identifier.clone();
+        let new_identifier = visible
+            .get(new_index)
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
         self.select(new_identifier);
     }
 
