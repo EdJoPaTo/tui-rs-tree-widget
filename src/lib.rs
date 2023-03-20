@@ -114,10 +114,6 @@ impl TreeState {
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     pub fn key_up(&mut self, items: &[TreeItem]) {
-        if items.is_empty() {
-            return;
-        }
-
         let visible = flatten(&self.get_all_opened(), items);
         let current_identifier = self.selected();
         let current_index = visible
@@ -126,17 +122,16 @@ impl TreeState {
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_sub(1).min(visible.len() - 1)
         });
-        let new_identifier = visible[new_index].identifier.clone();
+        let new_identifier = visible
+            .get(new_index)
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
         self.select(new_identifier);
     }
 
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
     pub fn key_down(&mut self, items: &[TreeItem]) {
-        if items.is_empty() {
-            return;
-        }
-
         let visible = flatten(&self.get_all_opened(), items);
         let current_identifier = self.selected();
         let current_index = visible
@@ -145,7 +140,10 @@ impl TreeState {
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_add(1).min(visible.len() - 1)
         });
-        let new_identifier = visible[new_index].identifier.clone();
+        let new_identifier = visible
+            .get(new_index)
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
         self.select(new_identifier);
     }
 
