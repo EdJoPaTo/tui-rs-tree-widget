@@ -273,11 +273,11 @@ pub struct Tree<'a> {
     highlight_symbol: Option<&'a str>,
 
     /// Symbol displayed in front of a closed node (As in the children are currently not visible)
-    node_closed_symbol: Option<&'a str>,
+    node_closed_symbol: &'a str,
     /// Symbol displayed in front of an open node. (As in the children are currently visible)
-    node_open_symbol: Option<&'a str>,
+    node_open_symbol: &'a str,
     /// Symbol displayed in front of a node without children.
-    node_no_children_symbol: Option<&'a str>,
+    node_no_children_symbol: &'a str,
 }
 
 impl<'a> Tree<'a> {
@@ -292,9 +292,9 @@ impl<'a> Tree<'a> {
             start_corner: Corner::TopLeft,
             highlight_style: Style::default(),
             highlight_symbol: None,
-            node_open_symbol: Some("\u{25bc} "),   // Arrow down
-            node_closed_symbol: Some("\u{25b6} "), // Arrow to right
-            node_no_children_symbol: Some("  "),
+            node_open_symbol: "\u{25bc} ",   // Arrow down
+            node_closed_symbol: "\u{25b6} ", // Arrow to right
+            node_no_children_symbol: "  ",
         }
     }
 
@@ -443,8 +443,7 @@ impl<'a> StatefulWidget for Tree<'a> {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
-                }
-                .unwrap_or("");
+                };
                 let max_width = area.width.saturating_sub(after_indent_x - x);
                 let (x, _) =
                     buf.set_stringn(after_indent_x, y, symbol, max_width as usize, item_style);
