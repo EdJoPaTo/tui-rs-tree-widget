@@ -330,6 +330,24 @@ impl<'a> Tree<'a> {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
+
+    #[must_use]
+    pub const fn node_closed_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_closed_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_open_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_open_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_no_children_symbol = symbol;
+        self
+    }
 }
 
 impl<'a> StatefulWidget for Tree<'a> {
