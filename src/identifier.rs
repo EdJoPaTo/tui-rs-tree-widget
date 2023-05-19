@@ -23,12 +23,9 @@ pub type TreeIdentifierVec = Vec<usize>;
 /// assert_eq!(branch, []);
 /// assert_eq!(leaf, None);
 /// ```
-pub fn get_without_leaf(identifier: TreeIdentifier) -> (TreeIdentifier, Option<&usize>) {
-    let length = identifier.len();
-    let length_without_leaf = length.saturating_sub(1);
-
-    let branch = &identifier[0..length_without_leaf];
-    let leaf = identifier.get(length_without_leaf);
-
-    (branch, leaf)
+pub const fn get_without_leaf(identifier: TreeIdentifier) -> (TreeIdentifier, Option<&usize>) {
+    match identifier {
+        [branch @ .., leaf] => (branch, Some(leaf)),
+        [] => (&[] as &[usize], None),
+    }
 }
