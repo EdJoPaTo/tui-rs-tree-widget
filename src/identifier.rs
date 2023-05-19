@@ -13,19 +13,19 @@ pub type TreeIdentifierVec = Vec<usize>;
 /// # use tui_tree_widget::get_identifier_without_leaf;
 /// let (branch, leaf) = get_identifier_without_leaf(&[2, 4, 6]);
 /// assert_eq!(branch, [2, 4]);
-/// assert_eq!(leaf, Some(&6));
+/// assert_eq!(leaf, Some(6));
 ///
 /// let (branch, leaf) = get_identifier_without_leaf(&[2]);
 /// assert_eq!(branch, []);
-/// assert_eq!(leaf, Some(&2));
+/// assert_eq!(leaf, Some(2));
 ///
 /// let (branch, leaf) = get_identifier_without_leaf(&[]);
 /// assert_eq!(branch, []);
 /// assert_eq!(leaf, None);
 /// ```
-pub const fn get_without_leaf(identifier: TreeIdentifier) -> (TreeIdentifier, Option<&usize>) {
+pub const fn get_without_leaf(identifier: TreeIdentifier) -> (TreeIdentifier, Option<usize>) {
     match identifier {
-        [branch @ .., leaf] => (branch, Some(leaf)),
+        [branch @ .., leaf] => (branch, Some(*leaf)),
         [] => (&[] as &[usize], None),
     }
 }
