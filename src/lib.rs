@@ -262,15 +262,24 @@ impl<'a> TreeItem<'a> {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a> {
-    block: Option<Block<'a>>,
     items: Vec<TreeItem<'a>>,
+
+    block: Option<Block<'a>>,
+    start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
-    start_corner: Corner,
+
     /// Style used to render selected item
     highlight_style: Style,
     /// Symbol in front of the selected item (Shift all items to the right)
     highlight_symbol: Option<&'a str>,
+
+    /// Symbol displayed in front of a closed node (As in the children are currently not visible)
+    node_closed_symbol: &'a str,
+    /// Symbol displayed in front of an open node. (As in the children are currently visible)
+    node_open_symbol: &'a str,
+    /// Symbol displayed in front of a node without children.
+    node_no_children_symbol: &'a str,
 }
 
 impl<'a> Tree<'a> {
@@ -279,12 +288,15 @@ impl<'a> Tree<'a> {
         T: Into<Vec<TreeItem<'a>>>,
     {
         Self {
-            block: None,
-            style: Style::default(),
             items: items.into(),
+            block: None,
             start_corner: Corner::TopLeft,
+            style: Style::default(),
             highlight_style: Style::default(),
             highlight_symbol: None,
+            node_closed_symbol: "\u{25b6} ", // Arrow to right
+            node_open_symbol: "\u{25bc} ",   // Arrow down
+            node_no_children_symbol: "  ",
         }
     }
 
@@ -296,14 +308,14 @@ impl<'a> Tree<'a> {
     }
 
     #[must_use]
-    pub const fn style(mut self, style: Style) -> Self {
-        self.style = style;
+    pub const fn start_corner(mut self, corner: Corner) -> Self {
+        self.start_corner = corner;
         self
     }
 
     #[must_use]
-    pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
-        self.highlight_symbol = Some(highlight_symbol);
+    pub const fn style(mut self, style: Style) -> Self {
+        self.style = style;
         self
     }
 
@@ -314,8 +326,26 @@ impl<'a> Tree<'a> {
     }
 
     #[must_use]
-    pub const fn start_corner(mut self, corner: Corner) -> Self {
-        self.start_corner = corner;
+    pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
+        self.highlight_symbol = Some(highlight_symbol);
+        self
+    }
+
+    #[must_use]
+    pub const fn node_closed_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_closed_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_open_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_open_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_no_children_symbol = symbol;
         self
     }
 }
@@ -419,22 +449,24 @@ impl<'a> StatefulWidget for Tree<'a> {
             };
 
             let after_depth_x = {
-                let symbol = if item.item.children.is_empty() {
-                    " "
-                } else if state.opened.contains(&item.identifier) {
-                    "\u{25bc}" // Arrow down
-                } else {
-                    "\u{25b6}" // Arrow to right
-                };
-                let string = format!("{:>width$}{} ", "", symbol, width = item.depth() * 2);
-                let max_width = area.width.saturating_sub(after_highlight_symbol_x - x);
-                let (x, _) = buf.set_stringn(
+                let indent_width = item.depth() * 2;
+                let (after_indent_x, _) = buf.set_stringn(
                     after_highlight_symbol_x,
                     y,
-                    string,
-                    max_width as usize,
+                    " ".repeat(indent_width),
+                    indent_width,
                     item_style,
                 );
+                let symbol = if item.item.children.is_empty() {
+                    self.node_no_children_symbol
+                } else if state.opened.contains(&item.identifier) {
+                    self.node_open_symbol
+                } else {
+                    self.node_closed_symbol
+                };
+                let max_width = area.width.saturating_sub(after_indent_x - x);
+                let (x, _) =
+                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, item_style);
                 x
             };
 
