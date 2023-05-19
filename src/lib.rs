@@ -262,11 +262,13 @@ impl<'a> TreeItem<'a> {
 /// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a> {
-    block: Option<Block<'a>>,
     items: Vec<TreeItem<'a>>,
+
+    block: Option<Block<'a>>,
+    start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
-    start_corner: Corner,
+
     /// Style used to render selected item
     highlight_style: Style,
     /// Symbol in front of the selected item (Shift all items to the right)
@@ -286,14 +288,14 @@ impl<'a> Tree<'a> {
         T: Into<Vec<TreeItem<'a>>>,
     {
         Self {
-            block: None,
-            style: Style::default(),
             items: items.into(),
+            block: None,
             start_corner: Corner::TopLeft,
+            style: Style::default(),
             highlight_style: Style::default(),
             highlight_symbol: None,
-            node_open_symbol: "\u{25bc} ",   // Arrow down
             node_closed_symbol: "\u{25b6} ", // Arrow to right
+            node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
         }
     }
@@ -306,14 +308,14 @@ impl<'a> Tree<'a> {
     }
 
     #[must_use]
-    pub const fn style(mut self, style: Style) -> Self {
-        self.style = style;
+    pub const fn start_corner(mut self, corner: Corner) -> Self {
+        self.start_corner = corner;
         self
     }
 
     #[must_use]
-    pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
-        self.highlight_symbol = Some(highlight_symbol);
+    pub const fn style(mut self, style: Style) -> Self {
+        self.style = style;
         self
     }
 
@@ -324,8 +326,8 @@ impl<'a> Tree<'a> {
     }
 
     #[must_use]
-    pub const fn start_corner(mut self, corner: Corner) -> Self {
-        self.start_corner = corner;
+    pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
+        self.highlight_symbol = Some(highlight_symbol);
         self
     }
 }
