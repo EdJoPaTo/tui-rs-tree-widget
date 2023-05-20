@@ -272,7 +272,7 @@ pub struct Tree<'a> {
     /// Style used to render selected item
     highlight_style: Style,
     /// Symbol in front of the selected item (Shift all items to the right)
-    highlight_symbol: Option<&'a str>,
+    highlight_symbol: &'a str,
 
     /// Symbol displayed in front of a closed node (As in the children are currently not visible)
     node_closed_symbol: &'a str,
@@ -293,7 +293,7 @@ impl<'a> Tree<'a> {
             start_corner: Corner::TopLeft,
             style: Style::default(),
             highlight_style: Style::default(),
-            highlight_symbol: None,
+            highlight_symbol: "",
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
@@ -327,7 +327,7 @@ impl<'a> Tree<'a> {
 
     #[must_use]
     pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
-        self.highlight_symbol = Some(highlight_symbol);
+        self.highlight_symbol = highlight_symbol;
         self
     }
 
@@ -406,8 +406,7 @@ impl<'a> StatefulWidget for Tree<'a> {
 
         state.offset = start;
 
-        let highlight_symbol = self.highlight_symbol.unwrap_or("");
-        let blank_symbol = " ".repeat(highlight_symbol.width());
+        let blank_symbol = " ".repeat(self.highlight_symbol.width());
 
         let mut current_height = 0;
         let has_selection = !state.selected.is_empty();
@@ -438,7 +437,7 @@ impl<'a> StatefulWidget for Tree<'a> {
             let is_selected = state.selected == item.identifier;
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
-                    highlight_symbol
+                    self.highlight_symbol
                 } else {
                     &blank_symbol
                 };
