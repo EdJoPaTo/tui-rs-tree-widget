@@ -1,4 +1,3 @@
-#![allow(clippy::must_use_candidate)]
 #![forbid(unsafe_code)]
 
 use std::collections::HashSet;
@@ -34,14 +33,17 @@ pub struct TreeState {
 }
 
 impl TreeState {
+    #[must_use]
     pub const fn get_offset(&self) -> usize {
         self.offset
     }
 
+    #[must_use]
     pub fn get_all_opened(&self) -> Vec<TreeIdentifierVec> {
         self.opened.iter().cloned().collect()
     }
 
+    #[must_use]
     pub fn selected(&self) -> Vec<usize> {
         self.selected.clone()
     }
@@ -183,6 +185,7 @@ pub struct TreeItem<'a> {
 }
 
 impl<'a> TreeItem<'a> {
+    #[must_use]
     pub fn new_leaf<T>(text: T) -> Self
     where
         T: Into<Text<'a>>,
@@ -194,6 +197,7 @@ impl<'a> TreeItem<'a> {
         }
     }
 
+    #[must_use]
     pub fn new<T, Children>(text: T, children: Children) -> Self
     where
         T: Into<Text<'a>>,
@@ -206,18 +210,22 @@ impl<'a> TreeItem<'a> {
         }
     }
 
+    #[must_use]
     pub fn children(&self) -> &[TreeItem] {
         &self.children
     }
 
+    #[must_use]
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
 
+    #[must_use]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
     }
 
+    #[must_use]
     pub fn height(&self) -> usize {
         self.text.height()
     }
@@ -283,6 +291,7 @@ pub struct Tree<'a> {
 }
 
 impl<'a> Tree<'a> {
+    #[must_use]
     pub fn new<T>(items: T) -> Self
     where
         T: Into<Vec<TreeItem<'a>>>,

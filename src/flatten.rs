@@ -1,5 +1,3 @@
-#![allow(clippy::implicit_hasher)]
-
 use crate::identifier::{TreeIdentifier, TreeIdentifierVec};
 use crate::TreeItem;
 
@@ -9,16 +7,19 @@ pub struct Flattened<'a> {
 }
 
 impl<'a> Flattened<'a> {
+    #[must_use]
     pub fn depth(&self) -> usize {
         self.identifier.len() - 1
     }
 }
 
 /// Get a flat list of all visible [`TreeItem`s](TreeItem)
+#[must_use]
 pub fn flatten<'a>(opened: &[TreeIdentifierVec], items: &'a [TreeItem<'a>]) -> Vec<Flattened<'a>> {
     internal(opened, items, &[])
 }
 
+#[must_use]
 fn internal<'a>(
     opened: &[TreeIdentifierVec],
     items: &'a [TreeItem<'a>],
