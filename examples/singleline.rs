@@ -6,7 +6,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{error::Error, io, time::SystemTime};
 use tui::{
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
@@ -16,26 +16,34 @@ use tui::{
 
 use tui_tree_widget::{Tree, TreeItem};
 
+#[derive(Debug)]
+struct Performance {
+    pub render_time: u128,
+}
+
 struct App<'a> {
     tree: StatefulTree<'a>,
+    performance: Performance,
 }
 
 impl<'a> App<'a> {
     fn new() -> Self {
-        Self {
-            tree: StatefulTree::with_items(vec![
-                TreeItem::new_leaf("a"),
-                TreeItem::new(
-                    "b",
-                    vec![
-                        TreeItem::new_leaf("c"),
-                        TreeItem::new("d", vec![TreeItem::new_leaf("e"), TreeItem::new_leaf("f")]),
-                        TreeItem::new_leaf("g"),
-                    ],
-                ),
-                TreeItem::new_leaf("h"),
-            ]),
-        }
+        let mut tree = StatefulTree::with_items(vec![
+            TreeItem::new_leaf("a"),
+            TreeItem::new(
+                "b",
+                vec![
+                    TreeItem::new_leaf("c"),
+                    TreeItem::new("d", vec![TreeItem::new_leaf("e"), TreeItem::new_leaf("f")]),
+                    TreeItem::new_leaf("g"),
+                ],
+            ),
+            TreeItem::new_leaf("h"),
+        ]);
+        tree.first();
+
+        let performance = Performance { render_time: 0 };
+        Self { tree, performance }
     }
 }
 
@@ -69,15 +77,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
+        let now = SystemTime::now();
         terminal.draw(|f| {
             let area = f.size();
 
             let items = Tree::new(app.tree.items.clone())
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .title(format!("Tree Widget {:?}", app.tree.state)),
-                )
+                .block(Block::default().borders(Borders::ALL).title(format!(
+                    "Tree Widget {:?} {:?}",
+                    app.tree.state, app.performance
+                )))
                 .highlight_style(
                     Style::default()
                         .fg(Color::Black)
@@ -87,6 +95,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                 .highlight_symbol(">> ");
             f.render_stateful_widget(items, area, &mut app.tree.state);
         })?;
+
+        let elapsed = now.elapsed().unwrap_or_default();
+        app.performance.render_time = elapsed.as_millis();
 
         if let Event::Key(key) = event::read()? {
             match key.code {

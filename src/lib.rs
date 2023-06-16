@@ -3,15 +3,18 @@
 use std::collections::HashSet;
 
 use tui::buffer::Buffer;
-use tui::layout::{Corner, Rect};
+use tui::layout::{Constraint, Corner, Rect};
 use tui::style::Style;
-use tui::text::Text;
+use tui::text::{Span, Spans, StyledGrapheme, Text};
 use tui::widgets::{Block, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
+mod compose;
 mod flatten;
 mod identifier;
+mod reflow;
 
+pub use crate::compose::{compose, Composed};
 pub use crate::flatten::{flatten, Flattened};
 pub use crate::identifier::{
     get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
@@ -108,7 +111,7 @@ impl TreeState {
         let visible = flatten(&self.get_all_opened(), items);
         let new_identifier = visible
             .last()
-            .map(|o| o.identifier.clone())
+            .map(|o| o.identifier().clone())
             .unwrap_or_default();
         self.select(new_identifier);
     }
@@ -120,13 +123,13 @@ impl TreeState {
         let current_identifier = self.selected();
         let current_index = visible
             .iter()
-            .position(|o| o.identifier == current_identifier);
+            .position(|o| *o.identifier() == current_identifier);
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_sub(1).min(visible.len() - 1)
         });
         let new_identifier = visible
             .get(new_index)
-            .map(|o| o.identifier.clone())
+            .map(|o| o.identifier().clone())
             .unwrap_or_default();
         self.select(new_identifier);
     }
@@ -138,13 +141,13 @@ impl TreeState {
         let current_identifier = self.selected();
         let current_index = visible
             .iter()
-            .position(|o| o.identifier == current_identifier);
+            .position(|o| *o.identifier() == current_identifier);
         let new_index = current_index.map_or(0, |current_index| {
             current_index.saturating_add(1).min(visible.len() - 1)
         });
         let new_identifier = visible
             .get(new_index)
-            .map(|o| o.identifier.clone())
+            .map(|o| o.identifier().clone())
             .unwrap_or_default();
         self.select(new_identifier);
     }
@@ -179,7 +182,8 @@ impl TreeState {
 /// ```
 #[derive(Debug, Clone)]
 pub struct TreeItem<'a> {
-    text: Text<'a>,
+    paragraphs: Vec<Text<'a>>,
+    heights: Vec<Constraint>,
     style: Style,
     children: Vec<TreeItem<'a>>,
 }
@@ -191,7 +195,8 @@ impl<'a> TreeItem<'a> {
         T: Into<Text<'a>>,
     {
         Self {
-            text: text.into(),
+            paragraphs: vec![text.into()],
+            heights: vec![Constraint::Length(1)],
             style: Style::default(),
             children: Vec::new(),
         }
@@ -204,10 +209,24 @@ impl<'a> TreeItem<'a> {
         Children: Into<Vec<TreeItem<'a>>>,
     {
         Self {
-            text: text.into(),
+            paragraphs: vec![text.into()],
+            heights: vec![Constraint::Length(1)],
             style: Style::default(),
             children: children.into(),
         }
+    }
+
+    pub fn paragraph<T>(mut self, text: T) -> Self
+    where
+        T: Into<Text<'a>>,
+    {
+        self.paragraphs.push(text.into());
+        self
+    }
+
+    pub fn heights(mut self, heights: &[Constraint]) -> Self {
+        self.heights = heights.to_vec();
+        self
     }
 
     #[must_use]
@@ -223,11 +242,6 @@ impl<'a> TreeItem<'a> {
     #[must_use]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
-    }
-
-    #[must_use]
-    pub fn height(&self) -> usize {
-        self.text.height()
     }
 
     #[must_use]
@@ -273,10 +287,12 @@ pub struct Tree<'a> {
     items: Vec<TreeItem<'a>>,
 
     block: Option<Block<'a>>,
+    /// Block that should be drawn around the item content.
+    item_block: Option<Block<'a>>,
+    ///
     start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
-
     /// Style used to render selected item
     highlight_style: Style,
     /// Symbol in front of the selected item (Shift all items to the right)
@@ -288,6 +304,9 @@ pub struct Tree<'a> {
     node_open_symbol: &'a str,
     /// Symbol displayed in front of a node without children.
     node_no_children_symbol: &'a str,
+    /// Symbol displayed at the end of each paragraph in [`TreeItem`]
+    /// that has been truncated.
+    truncation_symbol: &'a str,
 }
 
 impl<'a> Tree<'a> {
@@ -299,6 +318,7 @@ impl<'a> Tree<'a> {
         Self {
             items: items.into(),
             block: None,
+            item_block: None,
             start_corner: Corner::TopLeft,
             style: Style::default(),
             highlight_style: Style::default(),
@@ -306,6 +326,7 @@ impl<'a> Tree<'a> {
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
+            truncation_symbol: "[\u{2026}]",
         }
     }
 
@@ -313,6 +334,11 @@ impl<'a> Tree<'a> {
     #[must_use]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
+        self
+    }
+
+    pub fn item_block(mut self, block: Block<'a>) -> Self {
+        self.item_block = Some(block);
         self
     }
 
@@ -357,6 +383,11 @@ impl<'a> Tree<'a> {
         self.node_no_children_symbol = symbol;
         self
     }
+
+    pub const fn truncation_symbol(mut self, symbol: &'a str) -> Self {
+        self.truncation_symbol = symbol;
+        self
+    }
 }
 
 impl<'a> StatefulWidget for Tree<'a> {
@@ -377,119 +408,450 @@ impl<'a> StatefulWidget for Tree<'a> {
             return;
         }
 
-        let visible = flatten(&state.get_all_opened(), &self.items);
-        if visible.is_empty() {
-            return;
-        }
-        let available_height = area.height as usize;
+        let flattened = flatten(&state.get_all_opened(), &self.items);
 
-        let selected_index = if state.selected.is_empty() {
-            0
-        } else {
-            visible
-                .iter()
-                .position(|o| o.identifier == state.selected)
-                .unwrap_or(0)
-        };
-
-        let mut start = state.offset.min(selected_index);
-        let mut end = start;
-        let mut height = 0;
-        for item in visible.iter().skip(start) {
-            if height + item.item.height() > available_height {
-                break;
-            }
-
-            height += item.item.height();
-            end += 1;
-        }
-
-        while selected_index >= end {
-            height = height.saturating_add(visible[end].item.height());
-            end += 1;
-            while height > available_height {
-                height = height.saturating_sub(visible[start].item.height());
-                start += 1;
-            }
-        }
-
-        state.offset = start;
-
-        let blank_symbol = " ".repeat(self.highlight_symbol.width());
-
-        let mut current_height = 0;
-        let has_selection = !state.selected.is_empty();
-        #[allow(clippy::cast_possible_truncation)]
-        for item in visible.iter().skip(state.offset).take(end - start) {
-            #[allow(clippy::single_match_else)] // Keep same as List impl
-            let (x, y) = match self.start_corner {
-                Corner::BottomLeft => {
-                    current_height += item.item.height() as u16;
-                    (area.left(), area.bottom() - current_height)
+        match compose(&flattened, area.width, self.truncation_symbol) {
+            Ok(visible) => {
+                if visible.is_empty() {
+                    return;
                 }
-                _ => {
-                    let pos = (area.left(), area.top() + current_height);
-                    current_height += item.item.height() as u16;
-                    pos
+                let available_height = area.height as usize;
+
+                let selected_index = if state.selected.is_empty() {
+                    0
+                } else {
+                    visible
+                        .iter()
+                        .position(|o| *o.identifier() == state.selected)
+                        .unwrap_or(0)
+                };
+
+                let mut start = state.offset.min(selected_index);
+                let mut end = start;
+                let mut height = 0;
+                for item in visible.iter().skip(start) {
+                    if height + item.height() > available_height {
+                        break;
+                    }
+
+                    height += item.height();
+                    end += 1;
                 }
-            };
-            let area = Rect {
-                x,
-                y,
-                width: area.width,
-                height: item.item.height() as u16,
-            };
 
-            let item_style = self.style.patch(item.item.style);
-            buf.set_style(area, item_style);
+                while selected_index >= end {
+                    height = height.saturating_add(visible[end].height());
+                    end += 1;
+                    while height > available_height {
+                        height = height.saturating_sub(visible[start].height());
+                        start += 1;
+                    }
+                }
 
-            let is_selected = state.selected == item.identifier;
-            let after_highlight_symbol_x = if has_selection {
-                let symbol = if is_selected {
-                    self.highlight_symbol
-                } else {
-                    &blank_symbol
-                };
-                let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, item_style);
-                x
-            } else {
-                x
-            };
+                state.offset = start;
 
-            let after_depth_x = {
-                let indent_width = item.depth() * 2;
-                let (after_indent_x, _) = buf.set_stringn(
-                    after_highlight_symbol_x,
-                    y,
-                    " ".repeat(indent_width),
-                    indent_width,
-                    item_style,
-                );
-                let symbol = if item.item.children.is_empty() {
-                    self.node_no_children_symbol
-                } else if state.opened.contains(&item.identifier) {
-                    self.node_open_symbol
-                } else {
-                    self.node_closed_symbol
-                };
-                let max_width = area.width.saturating_sub(after_indent_x - x);
-                let (x, _) =
-                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, item_style);
-                x
-            };
+                let blank_symbol = " ".repeat(self.highlight_symbol.width());
 
-            let max_element_width = area.width.saturating_sub(after_depth_x - x);
-            for (j, line) in item.item.text.lines.iter().enumerate() {
-                buf.set_spans(after_depth_x, y + j as u16, line, max_element_width);
+                let mut current_height = 0;
+                let has_selection = !state.selected.is_empty();
+                #[allow(clippy::cast_possible_truncation)]
+                for item in visible.iter().skip(state.offset).take(end - start) {
+                    #[allow(clippy::single_match_else)] // Keep same as List impl
+                    let (x, y) = match self.start_corner {
+                        Corner::BottomLeft => {
+                            current_height += item.height() as u16;
+                            (area.left(), area.bottom() - current_height)
+                        }
+                        _ => {
+                            let pos = (area.left(), area.top() + current_height);
+                            current_height += item.height() as u16;
+                            pos
+                        }
+                    };
+                    let area = Rect {
+                        x,
+                        y,
+                        width: area.width,
+                        height: item.height() as u16,
+                    };
+
+                    let item_style = self.style.patch(item.style());
+                    buf.set_style(area, item_style);
+
+                    let is_selected = state.selected == *item.identifier();
+                    let after_highlight_symbol_x = if has_selection {
+                        let symbol = if is_selected {
+                            self.highlight_symbol
+                        } else {
+                            &blank_symbol
+                        };
+                        let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, item_style);
+                        x
+                    } else {
+                        x
+                    };
+
+                    let after_depth_x = {
+                        let indent_width = item.depth() * 2;
+                        let (after_indent_x, _) = buf.set_stringn(
+                            after_highlight_symbol_x,
+                            y,
+                            " ".repeat(indent_width),
+                            indent_width,
+                            item_style,
+                        );
+                        let symbol = if !item.has_children() {
+                            self.node_no_children_symbol
+                        } else if state.opened.contains(item.identifier()) {
+                            self.node_open_symbol
+                        } else {
+                            self.node_closed_symbol
+                        };
+                        let max_width = area.width.saturating_sub(after_indent_x - x);
+                        let (x, _) = buf.set_stringn(
+                            after_indent_x,
+                            y,
+                            symbol,
+                            max_width as usize,
+                            item_style,
+                        );
+                        x
+                    };
+
+                    let max_element_width = area.width.saturating_sub(after_depth_x - x);
+                    // TODO: write graphemes directly
+                    for (j, line) in item.text().iter().enumerate() {
+                        let spans = line
+                            .iter()
+                            .map(|StyledGrapheme { symbol, style }| Span::styled(*symbol, *style))
+                            .collect::<Vec<_>>();
+                        let spans = Spans::from(spans);
+                        buf.set_spans(after_depth_x, y + j as u16, &spans, max_element_width);
+                    }
+                    if is_selected {
+                        buf.set_style(area, self.highlight_style);
+                    }
+                }
             }
-            if is_selected {
-                buf.set_style(area, self.highlight_style);
+            Err(error) => {
+                let spans = Spans::from(vec![Span::raw(error.to_string())]);
+                buf.set_spans(area.x, area.y, &spans, area.width);
             }
         }
     }
 }
 
 impl<'a> Widget for Tree<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let mut state = TreeState::default();
+        StatefulWidget::render(self, area, buf, &mut state);
+    }
+}
+
+/// A `Tree` which can be rendered
+///
+/// # Example
+///
+/// ```
+/// # use tui_tree_widget::{Tree, TreeItem, TreeState};
+/// # use tui::backend::TestBackend;
+/// # use tui::Terminal;
+/// # use tui::widgets::{Block, Borders};
+/// # fn main() -> std::io::Result<()> {
+/// #     let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
+/// let mut state = TreeState::default();
+///
+/// let item = TreeItem::new_leaf("leaf");
+/// let items = vec![item];
+///
+/// terminal.draw(|f| {
+///     let area = f.size();
+///
+///     let tree_widget = Tree::new(items.clone())
+///         .block(Block::default().borders(Borders::ALL).title("Tree Widget"));
+///
+///     f.render_stateful_widget(tree_widget, area, &mut state);
+/// })?;
+/// #     Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone)]
+pub struct MultilineTree<'a> {
+    items: Vec<TreeItem<'a>>,
+    ///
+    block: Option<Block<'a>>,
+    /// Block that should be drawn around the item content.
+    item_block: Option<Block<'a>>,
+    /// Block that should be drawn around the item content if highlighted.
+    item_block_highlight: Option<Block<'a>>,
+    ///
+    start_corner: Corner,
+    /// Style used as a base style for the widget
+    style: Style,
+    /// Style used to render selected item
+    highlight_style: Style,
+    /// Symbol displayed in front of a closed node (As in the children are currently not visible)
+    node_closed_symbol: &'a str,
+    /// Symbol displayed in front of an open node. (As in the children are currently visible)
+    node_open_symbol: &'a str,
+    /// Symbol displayed in front of a node without children.
+    node_no_children_symbol: &'a str,
+    /// Symbol displayed at the end of each paragraph in [`TreeItem`]
+    /// that has been truncated.
+    truncation_symbol: &'a str,
+}
+
+impl<'a> MultilineTree<'a> {
+    #[must_use]
+    pub fn new<T>(items: T) -> Self
+    where
+        T: Into<Vec<TreeItem<'a>>>,
+    {
+        Self {
+            items: items.into(),
+            block: None,
+            item_block: Some(Block::default()),
+            item_block_highlight: Some(Block::default()),
+            start_corner: Corner::TopLeft,
+            style: Style::default(),
+            highlight_style: Style::default(),
+            node_closed_symbol: "\u{25b6} ", // Arrow to right
+            node_open_symbol: "\u{25bc} ",   // Arrow down
+            node_no_children_symbol: "  ",
+            truncation_symbol: "[\u{2026}]",
+        }
+    }
+
+    #[allow(clippy::missing_const_for_fn)]
+    #[must_use]
+    pub fn block(mut self, block: Block<'a>) -> Self {
+        self.block = Some(block);
+        self
+    }
+
+    pub fn item_block(mut self, block: Block<'a>) -> Self {
+        self.item_block = Some(block);
+        self
+    }
+
+    pub fn item_block_highlight(mut self, block: Block<'a>) -> Self {
+        self.item_block_highlight = Some(block);
+        self
+    }
+
+    #[must_use]
+    pub const fn start_corner(mut self, corner: Corner) -> Self {
+        self.start_corner = corner;
+        self
+    }
+
+    #[must_use]
+    pub const fn style(mut self, style: Style) -> Self {
+        self.style = style;
+        self
+    }
+
+    #[must_use]
+    pub const fn highlight_style(mut self, style: Style) -> Self {
+        self.highlight_style = style;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_closed_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_closed_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_open_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_open_symbol = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
+        self.node_no_children_symbol = symbol;
+        self
+    }
+
+    pub const fn truncation_symbol(mut self, symbol: &'a str) -> Self {
+        self.truncation_symbol = symbol;
+        self
+    }
+}
+
+impl<'a> StatefulWidget for MultilineTree<'a> {
+    type State = TreeState;
+
+    #[allow(clippy::too_many_lines)]
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        buf.set_style(area, self.style);
+        let padding = 2_usize;
+        let offset = 4_usize;
+
+        // Get the inner area inside a possible block, otherwise use the full area
+        let area = self.block.map_or(area, |b| {
+            let inner_area = b.inner(area);
+            b.render(area, buf);
+            inner_area
+        });
+
+        if area.width < 1 || area.height < 1 {
+            return;
+        }
+
+        let wrap_width = area.width.saturating_sub(padding as u16 + offset as u16);
+
+        let visible = flatten(&state.get_all_opened(), &self.items);
+        match compose(&visible, wrap_width, self.truncation_symbol) {
+            Ok(visible) => {
+                if visible.is_empty() {
+                    return;
+                }
+                let available_height = area.height as usize;
+
+                let selected_index = if state.selected.is_empty() {
+                    0
+                } else {
+                    visible
+                        .iter()
+                        .position(|o| *o.identifier() == state.selected)
+                        .unwrap_or(0)
+                };
+
+                let mut start = state.offset.min(selected_index);
+                let mut end = start;
+                let mut height = 0;
+                for item in visible.iter().skip(start) {
+                    if height + item.height() + padding > available_height {
+                        break;
+                    }
+
+                    height += item.height() + padding;
+                    end += 1;
+                }
+
+                while selected_index >= end {
+                    height = height.saturating_add(visible[end].height() + padding);
+                    end += 1;
+                    while height > available_height {
+                        height = height.saturating_sub(visible[start].height() + padding);
+                        start += 1;
+                    }
+                }
+
+                state.offset = start;
+
+                let mut current_height = 0;
+                #[allow(clippy::cast_possible_truncation)]
+                for item in visible.iter().skip(state.offset).take(end - start) {
+                    #[allow(clippy::single_match_else)] // Keep same as List impl
+                    let (x, y) = match self.start_corner {
+                        Corner::BottomLeft => {
+                            current_height += (item.height() + padding) as u16;
+                            (area.left(), area.bottom() - current_height)
+                        }
+                        _ => {
+                            let pos = (area.left(), area.top() + current_height);
+                            current_height += (item.height() + padding) as u16;
+                            pos
+                        }
+                    };
+                    let area = Rect {
+                        x,
+                        y,
+                        width: area.width,
+                        height: (item.height() + padding) as u16,
+                    };
+
+                    let item_style = self.style.patch(item.style());
+                    buf.set_style(area, item_style);
+
+                    let is_selected = state.selected == *item.identifier();
+                    let after_depth_x = {
+                        let indent_width = item.depth() * 2;
+                        let (after_indent_x, _) = buf.set_stringn(
+                            x,
+                            y,
+                            " ".repeat(indent_width),
+                            indent_width,
+                            item_style,
+                        );
+                        let symbol = if !item.has_children() {
+                            self.node_no_children_symbol
+                        } else if state.opened.contains(item.identifier()) {
+                            self.node_open_symbol
+                        } else {
+                            self.node_closed_symbol
+                        };
+                        let max_width = area.width.saturating_sub(after_indent_x - x);
+                        let (x, _) = buf.set_stringn(
+                            after_indent_x + padding as u16,
+                            y + 1,
+                            symbol,
+                            max_width as usize,
+                            item_style,
+                        );
+                        x.saturating_sub(symbol.chars().count() as u16)
+                    };
+
+                    let max_element_width = area.width.saturating_sub(after_depth_x - x);
+
+                    let block = if is_selected {
+                        self.item_block_highlight.clone()
+                    } else {
+                        self.item_block.clone()
+                    };
+                    let inner_area = block.map_or(
+                        Rect {
+                            x: after_depth_x,
+                            y,
+                            width: max_element_width,
+                            height: (item.height() + padding) as u16,
+                        },
+                        |block| {
+                            let area = Rect {
+                                x: after_depth_x.saturating_sub(padding as u16),
+                                y,
+                                width: max_element_width.saturating_add(padding as u16),
+                                height: (item.height().saturating_add(padding)) as u16,
+                            };
+
+                            let inner_area = block.inner(area);
+                            block.render(area, buf);
+                            inner_area
+                        },
+                    );
+
+                    let open_symbol_offset = self.node_open_symbol.chars().count() as u16;
+                    for (j, line) in item.text().iter().enumerate() {
+                        let spans = line
+                            .iter()
+                            .map(|StyledGrapheme { symbol, style }| Span::styled(*symbol, *style))
+                            .collect::<Vec<_>>();
+                        let spans = Spans::from(spans);
+                        buf.set_spans(
+                            inner_area.x + open_symbol_offset + 1,
+                            inner_area.y + j as u16,
+                            &spans,
+                            max_element_width,
+                        );
+                    }
+
+                    if is_selected {
+                        buf.set_style(inner_area, self.highlight_style);
+                    }
+                }
+            }
+            Err(error) => {
+                let spans = Spans::from(vec![Span::raw(error.to_string())]);
+                buf.set_spans(area.x, area.y, &spans, area.width);
+            }
+        }
+    }
+}
+
+impl<'a> Widget for MultilineTree<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TreeState::default();
         StatefulWidget::render(self, area, buf, &mut state);

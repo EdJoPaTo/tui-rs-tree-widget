@@ -2,14 +2,22 @@ use crate::identifier::{TreeIdentifier, TreeIdentifierVec};
 use crate::TreeItem;
 
 pub struct Flattened<'a> {
-    pub identifier: Vec<usize>,
-    pub item: &'a TreeItem<'a>,
+    identifier: Vec<usize>,
+    item: &'a TreeItem<'a>,
 }
 
 impl<'a> Flattened<'a> {
     #[must_use]
     pub fn depth(&self) -> usize {
         self.identifier.len() - 1
+    }
+
+    pub fn identifier(&self) -> &Vec<usize> {
+        &self.identifier
+    }
+
+    pub fn item(&self) -> &TreeItem {
+        self.item
     }
 }
 
@@ -79,7 +87,7 @@ fn get_opened_nothing_opened_is_top_level() {
     let result = flatten(&[], &items);
     let result_text = result
         .iter()
-        .map(|o| get_naive_string_from_text(&o.item.text))
+        .map(|o| get_naive_string_from_text(&o.item.paragraphs[0]))
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "h"]);
 }
@@ -91,7 +99,7 @@ fn get_opened_wrong_opened_is_only_top_level() {
     let result = flatten(&opened, &items);
     let result_text = result
         .iter()
-        .map(|o| get_naive_string_from_text(&o.item.text))
+        .map(|o| get_naive_string_from_text(&o.item.paragraphs[0]))
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "h"]);
 }
@@ -103,7 +111,7 @@ fn get_opened_one_is_opened() {
     let result = flatten(&opened, &items);
     let result_text = result
         .iter()
-        .map(|o| get_naive_string_from_text(&o.item.text))
+        .map(|o| get_naive_string_from_text(&o.item.paragraphs[0]))
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "c", "d", "g", "h"]);
 }
@@ -115,7 +123,7 @@ fn get_opened_all_opened() {
     let result = flatten(&opened, &items);
     let result_text = result
         .iter()
-        .map(|o| get_naive_string_from_text(&o.item.text))
+        .map(|o| get_naive_string_from_text(&o.item.paragraphs[0]))
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "c", "d", "e", "f", "g", "h"]);
 }
