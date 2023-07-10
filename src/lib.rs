@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
-use tui::buffer::Buffer;
-use tui::layout::{Corner, Rect};
-use tui::style::Style;
-use tui::text::Text;
-use tui::widgets::{Block, StatefulWidget, Widget};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Corner, Rect};
+use ratatui::style::Style;
+use ratatui::text::Text;
+use ratatui::widgets::{Block, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
@@ -480,7 +480,7 @@ impl<'a> StatefulWidget for Tree<'a> {
 
             let max_element_width = area.width.saturating_sub(after_depth_x - x);
             for (j, line) in item.item.text.lines.iter().enumerate() {
-                buf.set_spans(after_depth_x, y + j as u16, line, max_element_width);
+                buf.set_line(after_depth_x, y + j as u16, line, max_element_width);
             }
             if is_selected {
                 buf.set_style(area, self.highlight_style);
