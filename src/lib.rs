@@ -1,12 +1,19 @@
 #![forbid(unsafe_code)]
 
-use std::collections::HashSet;
+#[cfg(feature = "ratatui")]
+pub(crate) use ratatui as tui;
+#[cfg(not(feature = "ratatui"))]
+#[allow(clippy::single_component_path_imports)]
+pub(crate) use tui;
 
-use tui::buffer::Buffer;
-use tui::layout::{Corner, Rect};
-use tui::style::Style;
-use tui::text::Text;
-use tui::widgets::{Block, StatefulWidget, Widget};
+use self::tui::{
+    buffer::Buffer,
+    layout::{Corner, Rect},
+    style::Style,
+    text::Text,
+    widgets::{Block, StatefulWidget, Widget},
+};
+use std::collections::HashSet;
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
@@ -247,9 +254,10 @@ impl<'a> TreeItem<'a> {
 ///
 /// ```
 /// # use tui_tree_widget::{Tree, TreeItem, TreeState};
-/// # use tui::backend::TestBackend;
-/// # use tui::Terminal;
-/// # use tui::widgets::{Block, Borders};
+#[cfg_attr(feature = "ratatui", doc = "# use ratatui::{")]
+#[cfg_attr(not(feature = "ratatui"), doc = "# use tui::{")]
+/// #   backend::TestBackend, Terminal, widgets::{Block, Borders}};
+/// #
 /// # fn main() -> std::io::Result<()> {
 /// #     let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
@@ -480,7 +488,11 @@ impl<'a> StatefulWidget for Tree<'a> {
 
             let max_element_width = area.width.saturating_sub(after_depth_x - x);
             for (j, line) in item.item.text.lines.iter().enumerate() {
-                buf.set_spans(after_depth_x, y + j as u16, line, max_element_width);
+                let y_j = y + j as u16;
+                #[cfg(feature = "ratatui")]
+                buf.set_line(after_depth_x, y_j, line, max_element_width);
+                #[cfg(not(feature = "ratatui"))]
+                buf.set_spans(after_depth_x, y_j, line, max_element_width);
             }
             if is_selected {
                 buf.set_style(area, self.highlight_style);

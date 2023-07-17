@@ -21,7 +21,7 @@ jobs:
       - run: cargo fmt --check --verbose
 
   test:
-    name: Test ${{ matrix.toolchain }} ${{ matrix.os }}
+    name: Test ${{ matrix.toolchain }} ${{ matrix.os }} ${{ matrix.features }}
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.toolchain == 'nightly' }}
     strategy:
@@ -36,6 +36,9 @@ jobs:
         clippyargs:
           - -D clippy::pedantic -D warnings
         features:
+          - "" # default features
+          - --no-default-features --features tui
+          - --no-default-features --features ratatui
           - --all-features
         include:
           # Check future versions and maybe get some glances on soon to be lints

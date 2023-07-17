@@ -45,8 +45,20 @@ fn internal<'a>(
     result
 }
 
-#[cfg(test)]
-fn get_naive_string_from_text(text: &tui::text::Text<'_>) -> String {
+#[cfg(all(test, feature = "ratatui"))]
+fn get_naive_string_from_text(text: &crate::tui::text::Text<'_>) -> String {
+    text.lines
+        .first()
+        .unwrap()
+        .spans
+        .first()
+        .unwrap()
+        .content
+        .to_string()
+}
+
+#[cfg(all(test, not(feature = "ratatui")))]
+fn get_naive_string_from_text(text: &crate::tui::text::Text<'_>) -> String {
     text.lines
         .first()
         .unwrap()
