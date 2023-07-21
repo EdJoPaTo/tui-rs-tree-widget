@@ -200,7 +200,7 @@ impl<'a> TreeItem<'a> {
     }
 
     #[must_use]
-    pub fn new<T, Children>(text: T, children: Children, is_visible: bool) -> Self
+    pub fn new<T, Children>(text: T, children: Children) -> Self
     where
         T: Into<Text<'a>>,
         Children: Into<Vec<TreeItem<'a>>>,
@@ -208,7 +208,7 @@ impl<'a> TreeItem<'a> {
         Self {
             text: text.into(),
             style: Style::default(),
-            is_visible,
+            is_visible: true,
             children: children.into(),
         }
     }
@@ -236,6 +236,11 @@ impl<'a> TreeItem<'a> {
     #[must_use]
     pub const fn style(mut self, style: Style) -> Self {
         self.style = style;
+        self
+    }
+
+    pub const fn visible(mut self, visible: bool) -> Self {
+        self.is_visible = visible;
         self
     }
 
