@@ -181,6 +181,7 @@ impl TreeState {
 pub struct TreeItem<'a> {
     text: Text<'a>,
     style: Style,
+    is_visible: bool,
     children: Vec<TreeItem<'a>>,
 }
 
@@ -193,12 +194,13 @@ impl<'a> TreeItem<'a> {
         Self {
             text: text.into(),
             style: Style::default(),
+            is_visible: true,
             children: Vec::new(),
         }
     }
 
     #[must_use]
-    pub fn new<T, Children>(text: T, children: Children) -> Self
+    pub fn new<T, Children>(text: T, children: Children, is_visible: bool) -> Self
     where
         T: Into<Text<'a>>,
         Children: Into<Vec<TreeItem<'a>>>,
@@ -206,6 +208,7 @@ impl<'a> TreeItem<'a> {
         Self {
             text: text.into(),
             style: Style::default(),
+            is_visible,
             children: children.into(),
         }
     }
@@ -377,7 +380,10 @@ impl<'a> StatefulWidget for Tree<'a> {
             return;
         }
 
-        let visible = flatten(&state.get_all_opened(), &self.items);
+        let visible = flatten(&state.get_all_opened(), &self.items)
+            .into_iter()
+            .filter(|i| i.item.is_visible)
+            .collect::<Vec<_>>();
         if visible.is_empty() {
             return;
         }
