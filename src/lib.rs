@@ -192,7 +192,7 @@ impl<'a> TreeItem<'a> {
     {
         Self {
             text: text.into(),
-            style: Style::default(),
+            style: Style::new(),
             children: Vec::new(),
         }
     }
@@ -205,7 +205,7 @@ impl<'a> TreeItem<'a> {
     {
         Self {
             text: text.into(),
-            style: Style::default(),
+            style: Style::new(),
             children: children.into(),
         }
     }
@@ -300,8 +300,8 @@ impl<'a> Tree<'a> {
             items: items.into(),
             block: None,
             start_corner: Corner::TopLeft,
-            style: Style::default(),
-            highlight_style: Style::default(),
+            style: Style::new(),
+            highlight_style: Style::new(),
             highlight_symbol: "",
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down

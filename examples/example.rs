@@ -12,7 +12,8 @@ use ratatui::{
     widgets::{Block, Borders},
     Terminal,
 };
-use std::{error::Error, io};
+use std::error::Error;
+use std::io;
 
 use tui_tree_widget::{Tree, TreeItem};
 
@@ -74,12 +75,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 
             let items = Tree::new(app.tree.items.clone())
                 .block(
-                    Block::default()
+                    Block::new()
                         .borders(Borders::ALL)
                         .title(format!("Tree Widget {:?}", app.tree.state)),
                 )
                 .highlight_style(
-                    Style::default()
+                    Style::new()
                         .fg(Color::Black)
                         .bg(Color::LightGreen)
                         .add_modifier(Modifier::BOLD),
