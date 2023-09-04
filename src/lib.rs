@@ -247,9 +247,9 @@ impl<'a> TreeItem<'a> {
 ///
 /// ```
 /// # use tui_tree_widget::{Tree, TreeItem, TreeState};
-/// # use tui::backend::TestBackend;
-/// # use tui::Terminal;
-/// # use tui::widgets::{Block, Borders};
+/// # use ratatui::backend::TestBackend;
+/// # use ratatui::Terminal;
+/// # use ratatui::widgets::{Block, Borders};
 /// # fn main() -> std::io::Result<()> {
 /// #     let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
