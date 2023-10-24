@@ -48,11 +48,8 @@ impl TreeState {
         self.selected.clone()
     }
 
-    pub fn select<I>(&mut self, identifier: I)
-    where
-        I: Into<Vec<usize>>,
-    {
-        self.selected = identifier.into();
+    pub fn select(&mut self, identifier: Vec<usize>) {
+        self.selected = identifier;
 
         // TODO: ListState does this. Is this relevant?
         if self.selected.is_empty() {
@@ -155,7 +152,7 @@ impl TreeState {
         let selected = self.selected();
         if !self.close(&selected) {
             let (head, _) = get_identifier_without_leaf(&selected);
-            self.select(head);
+            self.select(head.to_vec());
         }
     }
 
@@ -198,15 +195,14 @@ impl<'a> TreeItem<'a> {
     }
 
     #[must_use]
-    pub fn new<T, Children>(text: T, children: Children) -> Self
+    pub fn new<T>(text: T, children: Vec<TreeItem<'a>>) -> Self
     where
         T: Into<Text<'a>>,
-        Children: Into<Vec<TreeItem<'a>>>,
     {
         Self {
             text: text.into(),
             style: Style::new(),
-            children: children.into(),
+            children,
         }
     }
 
@@ -260,7 +256,7 @@ impl<'a> TreeItem<'a> {
 /// terminal.draw(|f| {
 ///     let area = f.size();
 ///
-///     let tree_widget = Tree::new(items.clone())
+///     let tree_widget = Tree::new(items)
 ///         .block(Block::default().borders(Borders::ALL).title("Tree Widget"));
 ///
 ///     f.render_stateful_widget(tree_widget, area, &mut state);
@@ -292,12 +288,9 @@ pub struct Tree<'a> {
 
 impl<'a> Tree<'a> {
     #[must_use]
-    pub fn new<T>(items: T) -> Self
-    where
-        T: Into<Vec<TreeItem<'a>>>,
-    {
+    pub const fn new(items: Vec<TreeItem<'a>>) -> Self {
         Self {
-            items: items.into(),
+            items,
             block: None,
             start_corner: Corner::TopLeft,
             style: Style::new(),
