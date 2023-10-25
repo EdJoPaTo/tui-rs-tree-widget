@@ -100,7 +100,7 @@ impl TreeState {
         self.select(vec![0]);
     }
 
-    /// Select the last node.
+    /// Select the last visible node.
     pub fn select_last(&mut self, items: &[TreeItem]) {
         let visible = flatten(&self.get_all_opened(), items);
         let new_identifier = visible
@@ -110,40 +110,75 @@ impl TreeState {
         self.select(new_identifier);
     }
 
-    /// Handles the up arrow key.
-    /// Moves up in the current depth or to its parent.
-    pub fn key_up(&mut self, items: &[TreeItem]) {
+    /// Select the node visible on the given index.
+    ///
+    /// Returns `true` when the selection changed.
+    ///
+    /// This can be useful for mouse clicks.
+    pub fn select_visible_index(&mut self, items: &[TreeItem], new_index: usize) -> bool {
+        let current_identifier = self.selected();
+        let visible = flatten(&self.get_all_opened(), items);
+        let new_index = new_index.min(visible.len().saturating_sub(1));
+        let new_identifier = visible
+            .get(new_index)
+            .map(|o| o.identifier.clone())
+            .unwrap_or_default();
+        let changed = current_identifier != new_identifier;
+        self.select(new_identifier);
+        changed
+    }
+
+    /// Move the current selection with the direction/amount by the given function.
+    ///
+    /// Returns `true` when the selection changed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use tui_tree_widget::TreeState;
+    /// # let items = vec![];
+    /// # let mut state = TreeState::default();
+    /// // Move the selection one down
+    /// state.select_visible_relative(&items, |current| {
+    ///     current.map_or(0, |current| current.saturating_add(1))
+    /// });
+    /// ```
+    ///
+    /// For more examples take a look into the source code of [`TreeState::key_up`] or [`TreeState::key_down`].
+    /// They are implemented with this method.
+    pub fn select_visible_relative<F>(&mut self, items: &[TreeItem], f: F) -> bool
+    where
+        F: FnOnce(Option<usize>) -> usize,
+    {
         let visible = flatten(&self.get_all_opened(), items);
         let current_identifier = self.selected();
         let current_index = visible
             .iter()
             .position(|o| o.identifier == current_identifier);
-        let new_index = current_index.map_or(0, |current_index| {
-            current_index.saturating_sub(1).min(visible.len() - 1)
-        });
+        let new_index = f(current_index).min(visible.len().saturating_sub(1));
         let new_identifier = visible
             .get(new_index)
             .map(|o| o.identifier.clone())
             .unwrap_or_default();
+        let changed = current_index != Some(new_index);
         self.select(new_identifier);
+        changed
+    }
+
+    /// Handles the up arrow key.
+    /// Moves up in the current depth or to its parent.
+    pub fn key_up(&mut self, items: &[TreeItem]) {
+        self.select_visible_relative(items, |current| {
+            current.map_or(usize::MAX, |current| current.saturating_sub(1))
+        });
     }
 
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
     pub fn key_down(&mut self, items: &[TreeItem]) {
-        let visible = flatten(&self.get_all_opened(), items);
-        let current_identifier = self.selected();
-        let current_index = visible
-            .iter()
-            .position(|o| o.identifier == current_identifier);
-        let new_index = current_index.map_or(0, |current_index| {
-            current_index.saturating_add(1).min(visible.len() - 1)
+        self.select_visible_relative(items, |current| {
+            current.map_or(0, |current| current.saturating_add(1))
         });
-        let new_identifier = visible
-            .get(new_index)
-            .map(|o| o.identifier.clone())
-            .unwrap_or_default();
-        self.select(new_identifier);
     }
 
     /// Handles the left arrow key.
