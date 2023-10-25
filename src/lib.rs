@@ -20,9 +20,7 @@ mod flatten;
 mod identifier;
 
 pub use crate::flatten::{flatten, Flattened};
-pub use crate::identifier::{
-    get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
-};
+pub use crate::identifier::get_without_leaf as get_identifier_without_leaf;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`].
 ///
@@ -30,32 +28,37 @@ pub use crate::identifier::{
 ///
 /// ```
 /// # use tui_tree_widget::TreeState;
-/// let mut state = TreeState::default();
+/// type Identifier = usize;
+///
+/// let mut state = TreeState::<Identifier>::default();
 /// ```
 #[derive(Debug, Default, Clone)]
-pub struct TreeState {
+pub struct TreeState<Identifier> {
     offset: usize,
-    opened: HashSet<TreeIdentifierVec>,
-    selected: TreeIdentifierVec,
+    opened: HashSet<Vec<Identifier>>,
+    selected: Vec<Identifier>,
 }
 
-impl TreeState {
+impl<Identifier> TreeState<Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
     #[must_use]
     pub const fn get_offset(&self) -> usize {
         self.offset
     }
 
     #[must_use]
-    pub fn get_all_opened(&self) -> Vec<TreeIdentifierVec> {
+    pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
         self.opened.iter().cloned().collect()
     }
 
     #[must_use]
-    pub fn selected(&self) -> Vec<usize> {
+    pub fn selected(&self) -> Vec<Identifier> {
         self.selected.clone()
     }
 
-    pub fn select(&mut self, identifier: Vec<usize>) {
+    pub fn select(&mut self, identifier: Vec<Identifier>) {
         self.selected = identifier;
 
         // TODO: ListState does this. Is this relevant?
@@ -67,7 +70,7 @@ impl TreeState {
     /// Open a tree node.
     /// Returns `true` if the node was closed and has been opened.
     /// Returns `false` if the node was already open.
-    pub fn open(&mut self, identifier: TreeIdentifierVec) -> bool {
+    pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
         } else {
@@ -78,13 +81,13 @@ impl TreeState {
     /// Close a tree node.
     /// Returns `true` if the node was open and has been closed.
     /// Returns `false` if the node was already closed.
-    pub fn close(&mut self, identifier: TreeIdentifier) -> bool {
+    pub fn close(&mut self, identifier: &[Identifier]) -> bool {
         self.opened.remove(identifier)
     }
 
     /// Toggles a tree node.
     /// If the node is in opened then it calls `close()`. Otherwise it calls `open()`.
-    pub fn toggle(&mut self, identifier: TreeIdentifierVec) {
+    pub fn toggle(&mut self, identifier: Vec<Identifier>) {
         if self.opened.contains(&identifier) {
             self.close(&identifier);
         } else {
@@ -103,12 +106,16 @@ impl TreeState {
     }
 
     /// Select the first node.
-    pub fn select_first(&mut self) {
-        self.select(vec![0]);
+    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) {
+        let identifier = items
+            .first()
+            .map(|o| vec![o.identifier.clone()])
+            .unwrap_or_default();
+        self.select(identifier);
     }
 
     /// Select the last visible node.
-    pub fn select_last(&mut self, items: &[TreeItem]) {
+    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) {
         let visible = flatten(&self.get_all_opened(), items);
         let new_identifier = visible
             .last()
@@ -122,7 +129,11 @@ impl TreeState {
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    pub fn select_visible_index(&mut self, items: &[TreeItem], new_index: usize) -> bool {
+    pub fn select_visible_index(
+        &mut self,
+        items: &[TreeItem<Identifier>],
+        new_index: usize,
+    ) -> bool {
         let current_identifier = self.selected();
         let visible = flatten(&self.get_all_opened(), items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
@@ -144,7 +155,8 @@ impl TreeState {
     /// ```
     /// # use tui_tree_widget::TreeState;
     /// # let items = vec![];
-    /// # let mut state = TreeState::default();
+    /// # type Identifier = usize;
+    /// # let mut state = TreeState::<Identifier>::default();
     /// // Move the selection one down
     /// state.select_visible_relative(&items, |current| {
     ///     current.map_or(0, |current| current.saturating_add(1))
@@ -153,7 +165,7 @@ impl TreeState {
     ///
     /// For more examples take a look into the source code of [`TreeState::key_up`] or [`TreeState::key_down`].
     /// They are implemented with this method.
-    pub fn select_visible_relative<F>(&mut self, items: &[TreeItem], f: F) -> bool
+    pub fn select_visible_relative<F>(&mut self, items: &[TreeItem<Identifier>], f: F) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
@@ -174,7 +186,7 @@ impl TreeState {
 
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
-    pub fn key_up(&mut self, items: &[TreeItem]) {
+    pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) {
         self.select_visible_relative(items, |current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         });
@@ -182,7 +194,7 @@ impl TreeState {
 
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
-    pub fn key_down(&mut self, items: &[TreeItem]) {
+    pub fn key_down(&mut self, items: &[TreeItem<Identifier>]) {
         self.select_visible_relative(items, |current| {
             current.map_or(0, |current| current.saturating_add(1))
         });
@@ -213,23 +225,25 @@ impl TreeState {
 ///
 /// ```
 /// # use tui_tree_widget::TreeItem;
-/// let a = TreeItem::new_leaf("leaf");
-/// let b = TreeItem::new("root", vec![a]);
+/// let a = TreeItem::new_leaf("l", "Leaf");
+/// let b = TreeItem::new("r", "Root", vec![a]);
 /// ```
 #[derive(Debug, Clone)]
-pub struct TreeItem<'a> {
+pub struct TreeItem<'a, Identifier> {
+    identifier: Identifier,
     text: Text<'a>,
     style: Style,
-    children: Vec<TreeItem<'a>>,
+    children: Vec<TreeItem<'a, Identifier>>,
 }
 
-impl<'a> TreeItem<'a> {
+impl<'a, Identifier> TreeItem<'a, Identifier> {
     #[must_use]
-    pub fn new_leaf<T>(text: T) -> Self
+    pub fn new_leaf<T>(identifier: Identifier, text: T) -> Self
     where
         T: Into<Text<'a>>,
     {
         Self {
+            identifier,
             text: text.into(),
             style: Style::new(),
             children: Vec::new(),
@@ -237,11 +251,12 @@ impl<'a> TreeItem<'a> {
     }
 
     #[must_use]
-    pub fn new<T>(text: T, children: Vec<TreeItem<'a>>) -> Self
+    pub fn new<T>(identifier: Identifier, text: T, children: Vec<TreeItem<'a, Identifier>>) -> Self
     where
         T: Into<Text<'a>>,
     {
         Self {
+            identifier,
             text: text.into(),
             style: Style::new(),
             children,
@@ -249,7 +264,7 @@ impl<'a> TreeItem<'a> {
     }
 
     #[must_use]
-    pub fn children(&self) -> &[TreeItem] {
+    pub fn children(&self) -> &[TreeItem<Identifier>] {
         &self.children
     }
 
@@ -274,7 +289,7 @@ impl<'a> TreeItem<'a> {
         self
     }
 
-    pub fn add_child(&mut self, child: TreeItem<'a>) {
+    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) {
         self.children.push(child);
     }
 }
@@ -291,7 +306,7 @@ impl<'a> TreeItem<'a> {
 /// # let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
 ///
-/// let item = TreeItem::new_leaf("leaf");
+/// let item = TreeItem::new_leaf("l", "leaf");
 /// let items = vec![item];
 ///
 /// terminal.draw(|f| {
@@ -305,8 +320,8 @@ impl<'a> TreeItem<'a> {
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct Tree<'a> {
-    items: Vec<TreeItem<'a>>,
+pub struct Tree<'a, Identifier> {
+    items: Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
     start_corner: Corner,
@@ -326,9 +341,9 @@ pub struct Tree<'a> {
     node_no_children_symbol: &'a str,
 }
 
-impl<'a> Tree<'a> {
+impl<'a, Identifier> Tree<'a, Identifier> {
     #[must_use]
-    pub const fn new(items: Vec<TreeItem<'a>>) -> Self {
+    pub const fn new(items: Vec<TreeItem<'a, Identifier>>) -> Self {
         Self {
             items,
             block: None,
@@ -392,8 +407,11 @@ impl<'a> Tree<'a> {
     }
 }
 
-impl<'a> StatefulWidget for Tree<'a> {
-    type State = TreeState;
+impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    type State = TreeState<Identifier>;
 
     #[allow(clippy::too_many_lines)]
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -522,7 +540,10 @@ impl<'a> StatefulWidget for Tree<'a> {
     }
 }
 
-impl<'a> Widget for Tree<'a> {
+impl<'a, Identifier> Widget for Tree<'a, Identifier>
+where
+    Identifier: Clone + Default + Eq + core::hash::Hash,
+{
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TreeState::default();
         StatefulWidget::render(self, area, buf, &mut state);
