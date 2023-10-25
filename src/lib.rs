@@ -165,7 +165,7 @@ impl TreeState {
 
 /// One item inside a [`Tree`]
 ///
-/// Can zero or more `children`.
+/// Can have zero or more `children`.
 ///
 /// # Example
 ///
