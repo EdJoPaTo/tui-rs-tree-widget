@@ -246,8 +246,7 @@ impl<'a> TreeItem<'a> {
 /// # use ratatui::backend::TestBackend;
 /// # use ratatui::Terminal;
 /// # use ratatui::widgets::{Block, Borders};
-/// # fn main() -> std::io::Result<()> {
-/// #     let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
+/// # let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
 ///
 /// let item = TreeItem::new_leaf("leaf");
@@ -257,12 +256,11 @@ impl<'a> TreeItem<'a> {
 ///     let area = f.size();
 ///
 ///     let tree_widget = Tree::new(items)
-///         .block(Block::default().borders(Borders::ALL).title("Tree Widget"));
+///         .block(Block::new().borders(Borders::ALL).title("Tree Widget"));
 ///
 ///     f.render_stateful_widget(tree_widget, area, &mut state);
 /// })?;
-/// #     Ok(())
-/// # }
+/// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a> {
