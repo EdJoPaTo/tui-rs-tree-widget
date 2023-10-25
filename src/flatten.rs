@@ -59,21 +59,24 @@ where
 #[cfg(test)]
 fn get_example_tree_items() -> Vec<TreeItem<'static, &'static str>> {
     vec![
-        TreeItem::new_leaf("a", "a"),
+        TreeItem::new_leaf("a", "Alfa"),
         TreeItem::new(
             "b",
-            "b",
+            "Bravo",
             vec![
-                TreeItem::new_leaf("c", "c"),
+                TreeItem::new_leaf("c", "Charlie"),
                 TreeItem::new(
                     "d",
-                    "d",
-                    vec![TreeItem::new_leaf("e", "e"), TreeItem::new_leaf("f", "f")],
+                    "Delta",
+                    vec![
+                        TreeItem::new_leaf("e", "Echo"),
+                        TreeItem::new_leaf("f", "Foxtrot"),
+                    ],
                 ),
-                TreeItem::new_leaf("g", "g"),
+                TreeItem::new_leaf("g", "Golf"),
             ],
         ),
-        TreeItem::new_leaf("h", "h"),
+        TreeItem::new_leaf("h", "Hotel"),
     ]
 }
 
