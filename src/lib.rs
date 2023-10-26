@@ -24,6 +24,9 @@ pub use crate::identifier::get_without_leaf as get_identifier_without_leaf;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`].
 ///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+/// For more information see [`TreeItem`].
+///
 /// # Example
 ///
 /// ```
@@ -221,6 +224,25 @@ where
 ///
 /// Can have zero or more `children`.
 ///
+/// # Identifier
+///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+///
+/// It needs to be unique among its siblings but can be used again on parent or child [`TreeItem`s](TreeItem).
+/// A common example would be a filename which has to be unique in its directory while it can exist in another.
+///
+/// The `text` can be different from its `identifier`.
+/// To repeat the filename analogy: File browsers sometimes hide file extensions.
+/// The filename `main.rs` is the identifier while its shown as `main`.
+/// Two files `main.rs` and `main.toml` can exist in the same directory and can both be displayed as `main` but their identifier is different.
+///
+/// Just like every file in a file system can be uniquely identified with its file and directory names each [`TreeItem`] in a [`Tree`] can be with these identifiers.
+/// As an example the following two identifiers describe the main file in a Rust cargo project: `vec!["src", "main.rs"]`.
+///
+/// The identifier does not need to be a `String` and is therefore generic.
+/// Until version 0.14 this crate used `usize` and indices.
+/// This might still be perfect for your use case.
+///
 /// # Example
 ///
 /// ```
@@ -295,6 +317,9 @@ impl<'a, Identifier> TreeItem<'a, Identifier> {
 }
 
 /// A `Tree` which can be rendered.
+///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+/// For more information see [`TreeItem`].
 ///
 /// # Example
 ///
