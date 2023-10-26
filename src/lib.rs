@@ -1,5 +1,12 @@
 #![forbid(unsafe_code)]
 
+/*!
+Widget built to show Tree Data structures.
+
+Tree widget [`Tree`] is generated with [`TreeItem`s](TreeItem) (which itself can contain [`TreeItem`] children to form the tree structure).
+The user interaction state (like the current selection) is stored in the [`TreeState`].
+*/
+
 use std::collections::HashSet;
 
 use ratatui::buffer::Buffer;
@@ -17,7 +24,7 @@ pub use crate::identifier::{
     get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
 };
 
-/// Keeps the state of what is currently selected and what was opened in a [`Tree`]
+/// Keeps the state of what is currently selected and what was opened in a [`Tree`].
 ///
 /// # Example
 ///
@@ -198,7 +205,7 @@ impl TreeState {
     }
 }
 
-/// One item inside a [`Tree`]
+/// One item inside a [`Tree`].
 ///
 /// Can have zero or more `children`.
 ///
@@ -272,7 +279,7 @@ impl<'a> TreeItem<'a> {
     }
 }
 
-/// A `Tree` which can be rendered
+/// A `Tree` which can be rendered.
 ///
 /// # Example
 ///

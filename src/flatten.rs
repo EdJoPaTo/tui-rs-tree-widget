@@ -1,6 +1,9 @@
 use crate::identifier::{TreeIdentifier, TreeIdentifierVec};
 use crate::TreeItem;
 
+/// A flattened item of all visible [`TreeItem`s](TreeItem).
+///
+/// Generated via [`flatten`].
 pub struct Flattened<'a> {
     pub identifier: Vec<usize>,
     pub item: &'a TreeItem<'a>,
@@ -13,7 +16,7 @@ impl<'a> Flattened<'a> {
     }
 }
 
-/// Get a flat list of all visible [`TreeItem`s](TreeItem)
+/// Get a flat list of all visible [`TreeItem`s](TreeItem).
 #[must_use]
 pub fn flatten<'a>(opened: &[TreeIdentifierVec], items: &'a [TreeItem<'a>]) -> Vec<Flattened<'a>> {
     internal(opened, items, &[])
