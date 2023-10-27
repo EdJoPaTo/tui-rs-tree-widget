@@ -248,7 +248,8 @@ where
 /// ```
 /// # use tui_tree_widget::TreeItem;
 /// let a = TreeItem::new_leaf("l", "Leaf");
-/// let b = TreeItem::new("r", "Root", vec![a]);
+/// let b = TreeItem::new("r", "Root", vec![a])?;
+/// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
 pub struct TreeItem<'a, Identifier> {
@@ -258,7 +259,11 @@ pub struct TreeItem<'a, Identifier> {
     children: Vec<TreeItem<'a, Identifier>>,
 }
 
-impl<'a, Identifier> TreeItem<'a, Identifier> {
+impl<'a, Identifier> TreeItem<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    /// Create a new `TreeItem` without children.
     #[must_use]
     pub fn new_leaf<T>(identifier: Identifier, text: T) -> Self
     where
@@ -272,17 +277,36 @@ impl<'a, Identifier> TreeItem<'a, Identifier> {
         }
     }
 
-    #[must_use]
-    pub fn new<T>(identifier: Identifier, text: T, children: Vec<TreeItem<'a, Identifier>>) -> Self
+    /// Create a new `TreeItem` with children.
+    ///
+    /// # Errors
+    ///
+    /// Errors when there are duplicate identifiers in the children.
+    pub fn new<T>(
+        identifier: Identifier,
+        text: T,
+        children: Vec<TreeItem<'a, Identifier>>,
+    ) -> std::io::Result<Self>
     where
         T: Into<Text<'a>>,
     {
-        Self {
+        let identifiers = children
+            .iter()
+            .map(|o| &o.identifier)
+            .collect::<HashSet<_>>();
+        if identifiers.len() != children.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "The children contain duplicate identifiers",
+            ));
+        }
+
+        Ok(Self {
             identifier,
             text: text.into(),
             style: Style::new(),
             children,
-        }
+        })
     }
 
     #[must_use]
@@ -290,11 +314,15 @@ impl<'a, Identifier> TreeItem<'a, Identifier> {
         &self.children
     }
 
+    /// Get a reference to a child by index.
     #[must_use]
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
 
+    /// Get a mutable reference to a child by index.
+    ///
+    /// When you choose to change the `identifier` the [`TreeState`] might not work as expected afterwards.
     #[must_use]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
@@ -311,9 +339,44 @@ impl<'a, Identifier> TreeItem<'a, Identifier> {
         self
     }
 
-    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) {
+    /// Add a child to the `TreeItem`.
+    ///
+    /// # Errors
+    ///
+    /// Errors when the `identifier` of the `child` already exists in the children.
+    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) -> std::io::Result<()> {
+        let existing = self
+            .children
+            .iter()
+            .map(|o| &o.identifier)
+            .collect::<HashSet<_>>();
+        if existing.contains(&child.identifier) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "identifier already exists in the children",
+            ));
+        }
+
         self.children.push(child);
+        Ok(())
     }
+}
+
+#[test]
+#[should_panic = "duplicate identifiers"]
+fn tree_item_new_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    TreeItem::new("root", "Root", vec![a, b]).unwrap();
+}
+
+#[test]
+#[should_panic = "identifier already exists"]
+fn tree_item_add_child_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    let mut root = TreeItem::new("root", "Root", vec![a]).unwrap();
+    root.add_child(b).unwrap();
 }
 
 /// A `Tree` which can be rendered.
@@ -338,6 +401,7 @@ impl<'a, Identifier> TreeItem<'a, Identifier> {
 ///     let area = f.size();
 ///
 ///     let tree_widget = Tree::new(items)
+///         .expect("all item identifiers are unique")
 ///         .block(Block::new().borders(Borders::ALL).title("Tree Widget"));
 ///
 ///     f.render_stateful_widget(tree_widget, area, &mut state);
@@ -366,10 +430,25 @@ pub struct Tree<'a, Identifier> {
     node_no_children_symbol: &'a str,
 }
 
-impl<'a, Identifier> Tree<'a, Identifier> {
-    #[must_use]
-    pub const fn new(items: Vec<TreeItem<'a, Identifier>>) -> Self {
-        Self {
+impl<'a, Identifier> Tree<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    /// Create a new `Tree`.
+    ///
+    /// # Errors
+    ///
+    /// Errors when there are duplicate identifiers in the children.
+    pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
+        let identifiers = items.iter().map(|o| &o.identifier).collect::<HashSet<_>>();
+        if identifiers.len() != items.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "The items contain duplicate identifiers",
+            ));
+        }
+
+        Ok(Self {
             items,
             block: None,
             start_corner: Corner::TopLeft,
@@ -379,7 +458,7 @@ impl<'a, Identifier> Tree<'a, Identifier> {
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
-        }
+        })
     }
 
     #[allow(clippy::missing_const_for_fn)]
@@ -430,6 +509,14 @@ impl<'a, Identifier> Tree<'a, Identifier> {
         self.node_no_children_symbol = symbol;
         self
     }
+}
+
+#[test]
+#[should_panic = "duplicate identifiers"]
+fn tree_new_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    Tree::new(vec![a, b]).unwrap();
 }
 
 impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>

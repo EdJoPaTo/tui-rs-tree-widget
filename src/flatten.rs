@@ -72,10 +72,12 @@ fn get_example_tree_items() -> Vec<TreeItem<'static, &'static str>> {
                         TreeItem::new_leaf("e", "Echo"),
                         TreeItem::new_leaf("f", "Foxtrot"),
                     ],
-                ),
+                )
+                .expect("all item identifiers are unique"),
                 TreeItem::new_leaf("g", "Golf"),
             ],
-        ),
+        )
+        .expect("all item identifiers are unique"),
         TreeItem::new_leaf("h", "Hotel"),
     ]
 }

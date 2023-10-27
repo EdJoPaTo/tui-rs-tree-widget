@@ -38,10 +38,12 @@ impl<'a> App<'a> {
                                 TreeItem::new_leaf("e", "Echo"),
                                 TreeItem::new_leaf("f", "Foxtrot"),
                             ],
-                        ),
+                        )
+                        .expect("all item identifiers are unique"),
                         TreeItem::new_leaf("g", "Golf"),
                     ],
-                ),
+                )
+                .expect("all item identifiers are unique"),
                 TreeItem::new_leaf("h", "Hotel"),
             ]),
         }
@@ -82,6 +84,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             let area = f.size();
 
             let items = Tree::new(app.tree.items.clone())
+                .expect("all item identifiers are unique")
                 .block(
                     Block::new()
                         .borders(Borders::ALL)
