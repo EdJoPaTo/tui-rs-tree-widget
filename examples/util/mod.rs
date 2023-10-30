@@ -1,8 +1,8 @@
 use tui_tree_widget::{TreeItem, TreeState};
 
 pub struct StatefulTree<'a> {
-    pub state: TreeState,
-    pub items: Vec<TreeItem<'a>>,
+    pub state: TreeState<&'static str>,
+    pub items: Vec<TreeItem<'a, &'static str>>,
 }
 
 impl<'a> StatefulTree<'a> {
@@ -14,7 +14,7 @@ impl<'a> StatefulTree<'a> {
         }
     }
 
-    pub fn with_items(items: Vec<TreeItem<'a>>) -> Self {
+    pub fn with_items(items: Vec<TreeItem<'a, &'static str>>) -> Self {
         Self {
             state: TreeState::default(),
             items,
@@ -22,7 +22,7 @@ impl<'a> StatefulTree<'a> {
     }
 
     pub fn first(&mut self) {
-        self.state.select_first();
+        self.state.select_first(&self.items);
     }
 
     pub fn last(&mut self) {

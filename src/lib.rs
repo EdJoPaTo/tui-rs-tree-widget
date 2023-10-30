@@ -20,42 +20,48 @@ mod flatten;
 mod identifier;
 
 pub use crate::flatten::{flatten, Flattened};
-pub use crate::identifier::{
-    get_without_leaf as get_identifier_without_leaf, TreeIdentifier, TreeIdentifierVec,
-};
+pub use crate::identifier::get_without_leaf as get_identifier_without_leaf;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`].
+///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+/// For more information see [`TreeItem`].
 ///
 /// # Example
 ///
 /// ```
 /// # use tui_tree_widget::TreeState;
-/// let mut state = TreeState::default();
+/// type Identifier = usize;
+///
+/// let mut state = TreeState::<Identifier>::default();
 /// ```
 #[derive(Debug, Default, Clone)]
-pub struct TreeState {
+pub struct TreeState<Identifier> {
     offset: usize,
-    opened: HashSet<TreeIdentifierVec>,
-    selected: TreeIdentifierVec,
+    opened: HashSet<Vec<Identifier>>,
+    selected: Vec<Identifier>,
 }
 
-impl TreeState {
+impl<Identifier> TreeState<Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
     #[must_use]
     pub const fn get_offset(&self) -> usize {
         self.offset
     }
 
     #[must_use]
-    pub fn get_all_opened(&self) -> Vec<TreeIdentifierVec> {
+    pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
         self.opened.iter().cloned().collect()
     }
 
     #[must_use]
-    pub fn selected(&self) -> Vec<usize> {
+    pub fn selected(&self) -> Vec<Identifier> {
         self.selected.clone()
     }
 
-    pub fn select(&mut self, identifier: Vec<usize>) {
+    pub fn select(&mut self, identifier: Vec<Identifier>) {
         self.selected = identifier;
 
         // TODO: ListState does this. Is this relevant?
@@ -67,7 +73,7 @@ impl TreeState {
     /// Open a tree node.
     /// Returns `true` if the node was closed and has been opened.
     /// Returns `false` if the node was already open.
-    pub fn open(&mut self, identifier: TreeIdentifierVec) -> bool {
+    pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
         } else {
@@ -78,13 +84,13 @@ impl TreeState {
     /// Close a tree node.
     /// Returns `true` if the node was open and has been closed.
     /// Returns `false` if the node was already closed.
-    pub fn close(&mut self, identifier: TreeIdentifier) -> bool {
+    pub fn close(&mut self, identifier: &[Identifier]) -> bool {
         self.opened.remove(identifier)
     }
 
     /// Toggles a tree node.
     /// If the node is in opened then it calls `close()`. Otherwise it calls `open()`.
-    pub fn toggle(&mut self, identifier: TreeIdentifierVec) {
+    pub fn toggle(&mut self, identifier: Vec<Identifier>) {
         if self.opened.contains(&identifier) {
             self.close(&identifier);
         } else {
@@ -103,12 +109,16 @@ impl TreeState {
     }
 
     /// Select the first node.
-    pub fn select_first(&mut self) {
-        self.select(vec![0]);
+    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) {
+        let identifier = items
+            .first()
+            .map(|o| vec![o.identifier.clone()])
+            .unwrap_or_default();
+        self.select(identifier);
     }
 
     /// Select the last visible node.
-    pub fn select_last(&mut self, items: &[TreeItem]) {
+    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) {
         let visible = flatten(&self.get_all_opened(), items);
         let new_identifier = visible
             .last()
@@ -122,7 +132,11 @@ impl TreeState {
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    pub fn select_visible_index(&mut self, items: &[TreeItem], new_index: usize) -> bool {
+    pub fn select_visible_index(
+        &mut self,
+        items: &[TreeItem<Identifier>],
+        new_index: usize,
+    ) -> bool {
         let current_identifier = self.selected();
         let visible = flatten(&self.get_all_opened(), items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
@@ -144,7 +158,8 @@ impl TreeState {
     /// ```
     /// # use tui_tree_widget::TreeState;
     /// # let items = vec![];
-    /// # let mut state = TreeState::default();
+    /// # type Identifier = usize;
+    /// # let mut state = TreeState::<Identifier>::default();
     /// // Move the selection one down
     /// state.select_visible_relative(&items, |current| {
     ///     current.map_or(0, |current| current.saturating_add(1))
@@ -153,7 +168,7 @@ impl TreeState {
     ///
     /// For more examples take a look into the source code of [`TreeState::key_up`] or [`TreeState::key_down`].
     /// They are implemented with this method.
-    pub fn select_visible_relative<F>(&mut self, items: &[TreeItem], f: F) -> bool
+    pub fn select_visible_relative<F>(&mut self, items: &[TreeItem<Identifier>], f: F) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
@@ -174,7 +189,7 @@ impl TreeState {
 
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
-    pub fn key_up(&mut self, items: &[TreeItem]) {
+    pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) {
         self.select_visible_relative(items, |current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         });
@@ -182,7 +197,7 @@ impl TreeState {
 
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
-    pub fn key_down(&mut self, items: &[TreeItem]) {
+    pub fn key_down(&mut self, items: &[TreeItem<Identifier>]) {
         self.select_visible_relative(items, |current| {
             current.map_or(0, |current| current.saturating_add(1))
         });
@@ -209,55 +224,105 @@ impl TreeState {
 ///
 /// Can have zero or more `children`.
 ///
+/// # Identifier
+///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+///
+/// It needs to be unique among its siblings but can be used again on parent or child [`TreeItem`s](TreeItem).
+/// A common example would be a filename which has to be unique in its directory while it can exist in another.
+///
+/// The `text` can be different from its `identifier`.
+/// To repeat the filename analogy: File browsers sometimes hide file extensions.
+/// The filename `main.rs` is the identifier while its shown as `main`.
+/// Two files `main.rs` and `main.toml` can exist in the same directory and can both be displayed as `main` but their identifier is different.
+///
+/// Just like every file in a file system can be uniquely identified with its file and directory names each [`TreeItem`] in a [`Tree`] can be with these identifiers.
+/// As an example the following two identifiers describe the main file in a Rust cargo project: `vec!["src", "main.rs"]`.
+///
+/// The identifier does not need to be a `String` and is therefore generic.
+/// Until version 0.14 this crate used `usize` and indices.
+/// This might still be perfect for your use case.
+///
 /// # Example
 ///
 /// ```
 /// # use tui_tree_widget::TreeItem;
-/// let a = TreeItem::new_leaf("leaf");
-/// let b = TreeItem::new("root", vec![a]);
+/// let a = TreeItem::new_leaf("l", "Leaf");
+/// let b = TreeItem::new("r", "Root", vec![a])?;
+/// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct TreeItem<'a> {
+pub struct TreeItem<'a, Identifier> {
+    identifier: Identifier,
     text: Text<'a>,
     style: Style,
-    children: Vec<TreeItem<'a>>,
+    children: Vec<TreeItem<'a, Identifier>>,
 }
 
-impl<'a> TreeItem<'a> {
+impl<'a, Identifier> TreeItem<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    /// Create a new `TreeItem` without children.
     #[must_use]
-    pub fn new_leaf<T>(text: T) -> Self
+    pub fn new_leaf<T>(identifier: Identifier, text: T) -> Self
     where
         T: Into<Text<'a>>,
     {
         Self {
+            identifier,
             text: text.into(),
             style: Style::new(),
             children: Vec::new(),
         }
     }
 
-    #[must_use]
-    pub fn new<T>(text: T, children: Vec<TreeItem<'a>>) -> Self
+    /// Create a new `TreeItem` with children.
+    ///
+    /// # Errors
+    ///
+    /// Errors when there are duplicate identifiers in the children.
+    pub fn new<T>(
+        identifier: Identifier,
+        text: T,
+        children: Vec<TreeItem<'a, Identifier>>,
+    ) -> std::io::Result<Self>
     where
         T: Into<Text<'a>>,
     {
-        Self {
+        let identifiers = children
+            .iter()
+            .map(|o| &o.identifier)
+            .collect::<HashSet<_>>();
+        if identifiers.len() != children.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "The children contain duplicate identifiers",
+            ));
+        }
+
+        Ok(Self {
+            identifier,
             text: text.into(),
             style: Style::new(),
             children,
-        }
+        })
     }
 
     #[must_use]
-    pub fn children(&self) -> &[TreeItem] {
+    pub fn children(&self) -> &[TreeItem<Identifier>] {
         &self.children
     }
 
+    /// Get a reference to a child by index.
     #[must_use]
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
 
+    /// Get a mutable reference to a child by index.
+    ///
+    /// When you choose to change the `identifier` the [`TreeState`] might not work as expected afterwards.
     #[must_use]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
@@ -274,12 +339,50 @@ impl<'a> TreeItem<'a> {
         self
     }
 
-    pub fn add_child(&mut self, child: TreeItem<'a>) {
+    /// Add a child to the `TreeItem`.
+    ///
+    /// # Errors
+    ///
+    /// Errors when the `identifier` of the `child` already exists in the children.
+    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) -> std::io::Result<()> {
+        let existing = self
+            .children
+            .iter()
+            .map(|o| &o.identifier)
+            .collect::<HashSet<_>>();
+        if existing.contains(&child.identifier) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "identifier already exists in the children",
+            ));
+        }
+
         self.children.push(child);
+        Ok(())
     }
 }
 
+#[test]
+#[should_panic = "duplicate identifiers"]
+fn tree_item_new_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    TreeItem::new("root", "Root", vec![a, b]).unwrap();
+}
+
+#[test]
+#[should_panic = "identifier already exists"]
+fn tree_item_add_child_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    let mut root = TreeItem::new("root", "Root", vec![a]).unwrap();
+    root.add_child(b).unwrap();
+}
+
 /// A `Tree` which can be rendered.
+///
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+/// For more information see [`TreeItem`].
 ///
 /// # Example
 ///
@@ -291,13 +394,14 @@ impl<'a> TreeItem<'a> {
 /// # let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
 ///
-/// let item = TreeItem::new_leaf("leaf");
+/// let item = TreeItem::new_leaf("l", "leaf");
 /// let items = vec![item];
 ///
 /// terminal.draw(|f| {
 ///     let area = f.size();
 ///
 ///     let tree_widget = Tree::new(items)
+///         .expect("all item identifiers are unique")
 ///         .block(Block::new().borders(Borders::ALL).title("Tree Widget"));
 ///
 ///     f.render_stateful_widget(tree_widget, area, &mut state);
@@ -305,8 +409,8 @@ impl<'a> TreeItem<'a> {
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct Tree<'a> {
-    items: Vec<TreeItem<'a>>,
+pub struct Tree<'a, Identifier> {
+    items: Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
     start_corner: Corner,
@@ -326,10 +430,25 @@ pub struct Tree<'a> {
     node_no_children_symbol: &'a str,
 }
 
-impl<'a> Tree<'a> {
-    #[must_use]
-    pub const fn new(items: Vec<TreeItem<'a>>) -> Self {
-        Self {
+impl<'a, Identifier> Tree<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    /// Create a new `Tree`.
+    ///
+    /// # Errors
+    ///
+    /// Errors when there are duplicate identifiers in the children.
+    pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
+        let identifiers = items.iter().map(|o| &o.identifier).collect::<HashSet<_>>();
+        if identifiers.len() != items.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "The items contain duplicate identifiers",
+            ));
+        }
+
+        Ok(Self {
             items,
             block: None,
             start_corner: Corner::TopLeft,
@@ -339,7 +458,7 @@ impl<'a> Tree<'a> {
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
-        }
+        })
     }
 
     #[allow(clippy::missing_const_for_fn)]
@@ -392,8 +511,19 @@ impl<'a> Tree<'a> {
     }
 }
 
-impl<'a> StatefulWidget for Tree<'a> {
-    type State = TreeState;
+#[test]
+#[should_panic = "duplicate identifiers"]
+fn tree_new_errors_with_duplicate_identifiers() {
+    let a = TreeItem::new_leaf("same", "text");
+    let b = a.clone();
+    Tree::new(vec![a, b]).unwrap();
+}
+
+impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    type State = TreeState<Identifier>;
 
     #[allow(clippy::too_many_lines)]
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -522,7 +652,10 @@ impl<'a> StatefulWidget for Tree<'a> {
     }
 }
 
-impl<'a> Widget for Tree<'a> {
+impl<'a, Identifier> Widget for Tree<'a, Identifier>
+where
+    Identifier: Clone + Default + Eq + core::hash::Hash,
+{
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TreeState::default();
         StatefulWidget::render(self, area, buf, &mut state);

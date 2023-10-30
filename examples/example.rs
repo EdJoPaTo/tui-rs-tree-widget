@@ -25,16 +25,26 @@ impl<'a> App<'a> {
     fn new() -> Self {
         Self {
             tree: StatefulTree::with_items(vec![
-                TreeItem::new_leaf("a"),
+                TreeItem::new_leaf("a", "Alfa"),
                 TreeItem::new(
                     "b",
+                    "Bravo",
                     vec![
-                        TreeItem::new_leaf("c"),
-                        TreeItem::new("d", vec![TreeItem::new_leaf("e"), TreeItem::new_leaf("f")]),
-                        TreeItem::new_leaf("g"),
+                        TreeItem::new_leaf("c", "Charlie"),
+                        TreeItem::new(
+                            "d",
+                            "Delta",
+                            vec![
+                                TreeItem::new_leaf("e", "Echo"),
+                                TreeItem::new_leaf("f", "Foxtrot"),
+                            ],
+                        )
+                        .expect("all item identifiers are unique"),
+                        TreeItem::new_leaf("g", "Golf"),
                     ],
-                ),
-                TreeItem::new_leaf("h"),
+                )
+                .expect("all item identifiers are unique"),
+                TreeItem::new_leaf("h", "Hotel"),
             ]),
         }
     }
@@ -74,6 +84,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             let area = f.size();
 
             let items = Tree::new(app.tree.items.clone())
+                .expect("all item identifiers are unique")
                 .block(
                     Block::new()
                         .borders(Borders::ALL)
