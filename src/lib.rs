@@ -19,7 +19,8 @@ use unicode_width::UnicodeWidthStr;
 mod flatten;
 mod identifier;
 
-pub use crate::flatten::{flatten, Flattened};
+use crate::flatten::flatten;
+pub use crate::flatten::Flattened;
 pub use crate::identifier::get_without_leaf as get_identifier_without_leaf;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`].
@@ -54,6 +55,15 @@ where
     #[must_use]
     pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
         self.opened.iter().cloned().collect()
+    }
+
+    /// Get a flat list of all visible [`TreeItem`s](TreeItem) with this `TreeState`.
+    #[must_use]
+    pub fn flatten<'a>(
+        &self,
+        items: &'a [TreeItem<'a, Identifier>],
+    ) -> Vec<Flattened<'a, Identifier>> {
+        flatten(&self.opened, items)
     }
 
     #[must_use]
@@ -119,7 +129,7 @@ where
 
     /// Select the last visible node.
     pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) {
-        let visible = flatten(&self.get_all_opened(), items);
+        let visible = self.flatten(items);
         let new_identifier = visible
             .last()
             .map(|o| o.identifier.clone())
@@ -138,7 +148,7 @@ where
         new_index: usize,
     ) -> bool {
         let current_identifier = self.selected();
-        let visible = flatten(&self.get_all_opened(), items);
+        let visible = self.flatten(items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
         let new_identifier = visible
             .get(new_index)
@@ -172,7 +182,7 @@ where
     where
         F: FnOnce(Option<usize>) -> usize,
     {
-        let visible = flatten(&self.get_all_opened(), items);
+        let visible = self.flatten(items);
         let current_identifier = self.selected();
         let current_index = visible
             .iter()
@@ -540,7 +550,7 @@ where
             return;
         }
 
-        let visible = flatten(&state.get_all_opened(), &self.items);
+        let visible = state.flatten(&self.items);
         if visible.is_empty() {
             return;
         }
