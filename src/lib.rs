@@ -71,13 +71,27 @@ where
         self.selected.clone()
     }
 
-    pub fn select(&mut self, identifier: Vec<Identifier>) {
+    /// Selects the given identifier.
+    ///
+    /// Returns `true` when the selection changed.
+    ///
+    /// Clear the selection by passing an empty identifier vector:
+    ///
+    /// ```rust
+    /// # use tui_tree_widget::TreeState;
+    /// # let mut state = TreeState::<usize>::default();
+    /// state.select(Vec::new());
+    /// ```
+    pub fn select(&mut self, identifier: Vec<Identifier>) -> bool {
+        let changed = self.selected != identifier;
         self.selected = identifier;
 
         // TODO: ListState does this. Is this relevant?
         if self.selected.is_empty() {
             self.offset = 0;
         }
+
+        changed
     }
 
     /// Open a tree node.
@@ -119,22 +133,26 @@ where
     }
 
     /// Select the first node.
-    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) {
+    ///
+    /// Returns `true` when the selection changed.
+    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         let identifier = items
             .first()
             .map(|o| vec![o.identifier.clone()])
             .unwrap_or_default();
-        self.select(identifier);
+        self.select(identifier)
     }
 
     /// Select the last visible node.
-    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) {
+    ///
+    /// Returns `true` when the selection changed.
+    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         let visible = self.flatten(items);
         let new_identifier = visible
             .last()
             .map(|o| o.identifier.clone())
             .unwrap_or_default();
-        self.select(new_identifier);
+        self.select(new_identifier)
     }
 
     /// Select the node visible on the given index.
@@ -147,16 +165,13 @@ where
         items: &[TreeItem<Identifier>],
         new_index: usize,
     ) -> bool {
-        let current_identifier = self.selected();
         let visible = self.flatten(items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
         let new_identifier = visible
             .get(new_index)
             .map(|o| o.identifier.clone())
             .unwrap_or_default();
-        let changed = current_identifier != new_identifier;
-        self.select(new_identifier);
-        changed
+        self.select(new_identifier)
     }
 
     /// Move the current selection with the direction/amount by the given function.
@@ -192,9 +207,7 @@ where
             .get(new_index)
             .map(|o| o.identifier.clone())
             .unwrap_or_default();
-        let changed = current_index != Some(new_index);
-        self.select(new_identifier);
-        changed
+        self.select(new_identifier)
     }
 
     /// Handles the up arrow key.
