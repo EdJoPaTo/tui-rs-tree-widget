@@ -216,10 +216,11 @@ where
     /// Handles the left arrow key.
     /// Closes the currently selected or moves to its parent.
     pub fn key_left(&mut self) {
-        let selected = self.selected();
-        if !self.close(&selected) {
-            let (head, _) = get_identifier_without_leaf(&selected);
-            self.select(head.to_vec());
+        // Reimplement self.close because of multiple different borrows
+        let changed = self.opened.remove(&self.selected);
+        if !changed {
+            // Select the parent by removing the leaf from selection
+            self.selected.pop();
         }
     }
 
