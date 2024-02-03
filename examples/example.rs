@@ -1,6 +1,3 @@
-mod util;
-
-use crate::util::StatefulTree;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -15,16 +12,18 @@ use ratatui::{
 use std::error::Error;
 use std::io;
 
-use tui_tree_widget::{Tree, TreeItem};
+use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 struct App<'a> {
-    tree: StatefulTree<'a>,
+    state: TreeState<&'static str>,
+    items: Vec<TreeItem<'a, &'static str>>,
 }
 
 impl<'a> App<'a> {
     fn new() -> Self {
         Self {
-            tree: StatefulTree::with_items(vec![
+            state: TreeState::default(),
+            items: vec![
                 TreeItem::new_leaf("a", "Alfa"),
                 TreeItem::new(
                     "b",
@@ -45,7 +44,7 @@ impl<'a> App<'a> {
                 )
                 .expect("all item identifiers are unique"),
                 TreeItem::new_leaf("h", "Hotel"),
-            ]),
+            ],
         }
     }
 }
@@ -83,9 +82,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
         terminal.draw(|f| {
             let area = f.size();
 
-            let items = Tree::new(app.tree.items.clone())
+            let items = Tree::new(app.items.clone())
                 .expect("all item identifiers are unique")
-                .block(Block::bordered().title(format!("Tree Widget {:?}", app.tree.state)))
+                .block(Block::bordered().title(format!("Tree Widget {:?}", app.state)))
                 .highlight_style(
                     Style::new()
                         .fg(Color::Black)
@@ -93,19 +92,23 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
-            f.render_stateful_widget(items, area, &mut app.tree.state);
+            f.render_stateful_widget(items, area, &mut app.state);
         })?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
-                KeyCode::Char('\n' | ' ') => app.tree.toggle(),
-                KeyCode::Left => app.tree.left(),
-                KeyCode::Right => app.tree.right(),
-                KeyCode::Down => app.tree.down(),
-                KeyCode::Up => app.tree.up(),
-                KeyCode::Home => app.tree.first(),
-                KeyCode::End => app.tree.last(),
+                KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
+                KeyCode::Left => app.state.key_left(),
+                KeyCode::Right => app.state.key_right(),
+                KeyCode::Down => app.state.key_down(&app.items),
+                KeyCode::Up => app.state.key_up(&app.items),
+                KeyCode::Home => {
+                    app.state.select_first(&app.items);
+                }
+                KeyCode::End => {
+                    app.state.select_last(&app.items);
+                }
                 _ => {}
             }
         }
