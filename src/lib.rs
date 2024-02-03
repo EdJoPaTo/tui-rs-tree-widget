@@ -41,6 +41,7 @@ pub struct TreeState<Identifier> {
     offset: usize,
     opened: HashSet<Vec<Identifier>>,
     selected: Vec<Identifier>,
+    ensure_selected_in_view_on_next_render: bool,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -85,12 +86,7 @@ where
     pub fn select(&mut self, identifier: Vec<Identifier>) -> bool {
         let changed = self.selected != identifier;
         self.selected = identifier;
-
-        // TODO: ListState does this. Is this relevant?
-        if self.selected.is_empty() {
-            self.offset = 0;
-        }
-
+        self.ensure_selected_in_view_on_next_render = true;
         changed
     }
 
@@ -126,6 +122,7 @@ where
     /// See also [`toggle`](TreeState::toggle)
     pub fn toggle_selected(&mut self) {
         self.toggle(self.selected());
+        self.ensure_selected_in_view_on_next_render = true;
     }
 
     pub fn close_all(&mut self) {
@@ -210,6 +207,21 @@ where
         self.select(new_identifier)
     }
 
+    /// Ensure the selected [`TreeItem`] is visible on next render
+    pub fn scroll_selected_into_view(&mut self) {
+        self.ensure_selected_in_view_on_next_render = true;
+    }
+
+    /// Scroll the specified amount of lines up
+    pub fn scroll_up(&mut self, lines: usize) {
+        self.offset = self.offset.saturating_sub(lines);
+    }
+
+    /// Scroll the specified amount of lines down
+    pub fn scroll_down(&mut self, lines: usize) {
+        self.offset = self.offset.saturating_add(lines);
+    }
+
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) {
@@ -235,12 +247,14 @@ where
             // Select the parent by removing the leaf from selection
             self.selected.pop();
         }
+        self.ensure_selected_in_view_on_next_render = true;
     }
 
     /// Handles the right arrow key.
     /// Opens the currently selected.
     pub fn key_right(&mut self) {
         self.open(self.selected());
+        self.ensure_selected_in_view_on_next_render = true;
     }
 }
 
@@ -579,7 +593,13 @@ where
                 .unwrap_or(0)
         };
 
-        let mut start = state.offset.min(selected_index);
+        // Ensure last line is still visible
+        let mut start = state.offset.min(visible.len().saturating_sub(1));
+
+        if state.ensure_selected_in_view_on_next_render {
+            start = start.min(selected_index);
+        }
+
         let mut end = start;
         let mut height = 0;
         for item in visible.iter().skip(start) {
@@ -591,7 +611,7 @@ where
             end += 1;
         }
 
-        while selected_index >= end {
+        while state.ensure_selected_in_view_on_next_render && selected_index >= end {
             height = height.saturating_add(visible[end].item.height());
             end += 1;
             while height > available_height {
@@ -601,6 +621,7 @@ where
         }
 
         state.offset = start;
+        state.ensure_selected_in_view_on_next_render = false;
 
         let blank_symbol = " ".repeat(self.highlight_symbol.width());
 

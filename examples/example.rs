@@ -44,6 +44,19 @@ impl<'a> App<'a> {
                 )
                 .expect("all item identifiers are unique"),
                 TreeItem::new_leaf("h", "Hotel"),
+                TreeItem::new(
+                    "i",
+                    "India",
+                    vec![
+                        TreeItem::new_leaf("j", "Juliett"),
+                        TreeItem::new_leaf("k", "Kilo"),
+                        TreeItem::new_leaf("l", "Lima"),
+                        TreeItem::new_leaf("m", "Mike"),
+                        TreeItem::new_leaf("n", "November"),
+                    ],
+                )
+                .expect("all item identifiers are unique"),
+                TreeItem::new_leaf("o", "Oscar"),
             ],
         }
     }
@@ -95,8 +108,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             f.render_stateful_widget(items, area, &mut app.state);
         })?;
 
-        if let Event::Key(key) = event::read()? {
-            match key.code {
+        match event::read()? {
+            Event::Key(key) => match key.code {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
                 KeyCode::Left => app.state.key_left(),
@@ -109,8 +122,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                 KeyCode::End => {
                     app.state.select_last(&app.items);
                 }
+                KeyCode::PageDown => app.state.scroll_down(3),
+                KeyCode::PageUp => app.state.scroll_up(3),
                 _ => {}
-            }
+            },
+            Event::Mouse(mouse) => match mouse.kind {
+                event::MouseEventKind::ScrollDown => app.state.scroll_down(1),
+                event::MouseEventKind::ScrollUp => app.state.scroll_up(1),
+                _ => {}
+            },
+            _ => {}
         }
     }
 }
