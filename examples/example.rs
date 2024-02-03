@@ -9,7 +9,7 @@ use crossterm::{
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders},
+    widgets::Block,
     Terminal,
 };
 use std::error::Error;
@@ -85,11 +85,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
 
             let items = Tree::new(app.tree.items.clone())
                 .expect("all item identifiers are unique")
-                .block(
-                    Block::new()
-                        .borders(Borders::ALL)
-                        .title(format!("Tree Widget {:?}", app.tree.state)),
-                )
+                .block(Block::bordered().title(format!("Tree Widget {:?}", app.tree.state)))
                 .highlight_style(
                     Style::new()
                         .fg(Color::Black)

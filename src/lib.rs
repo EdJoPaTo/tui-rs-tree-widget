@@ -414,7 +414,7 @@ fn tree_item_add_child_errors_with_duplicate_identifiers() {
 /// # use tui_tree_widget::{Tree, TreeItem, TreeState};
 /// # use ratatui::backend::TestBackend;
 /// # use ratatui::Terminal;
-/// # use ratatui::widgets::{Block, Borders};
+/// # use ratatui::widgets::Block;
 /// # let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
 ///
@@ -426,7 +426,7 @@ fn tree_item_add_child_errors_with_duplicate_identifiers() {
 ///
 ///     let tree_widget = Tree::new(items)
 ///         .expect("all item identifiers are unique")
-///         .block(Block::new().borders(Borders::ALL).title("Tree Widget"));
+///         .block(Block::bordered().title("Tree Widget"));
 ///
 ///     f.render_stateful_widget(tree_widget, area, &mut state);
 /// })?;
