@@ -57,6 +57,29 @@ impl<'a> App<'a> {
                 )
                 .expect("all item identifiers are unique"),
                 TreeItem::new_leaf("o", "Oscar"),
+                TreeItem::new(
+                    "p",
+                    "Papa",
+                    vec![
+                        TreeItem::new_leaf("q", "Quebec"),
+                        TreeItem::new_leaf("r", "Romeo"),
+                        TreeItem::new_leaf("s", "Sierra"),
+                        TreeItem::new_leaf("t", "Tango"),
+                        TreeItem::new_leaf("u", "Uniform"),
+                        TreeItem::new(
+                            "v",
+                            "Victor",
+                            vec![
+                                TreeItem::new_leaf("w", "Whiskey"),
+                                TreeItem::new_leaf("x", "Xray"),
+                                TreeItem::new_leaf("y", "Yankee"),
+                            ],
+                        )
+                        .expect("all item identifiers are unique"),
+                    ],
+                )
+                .expect("all item identifiers are unique"),
+                TreeItem::new_leaf("z", "Zulu"),
             ],
         }
     }
@@ -95,7 +118,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
         terminal.draw(|frame| {
             let area = frame.size();
 
-            let items = Tree::new(app.items.clone())
+            let widget = Tree::new(app.items.clone())
                 .expect("all item identifiers are unique")
                 .block(Block::bordered().title(format!("Tree Widget {:?}", app.state)))
                 .highlight_style(
@@ -105,7 +128,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
-            frame.render_stateful_widget(items, area, &mut app.state);
+            frame.render_stateful_widget(widget, area, &mut app.state);
         })?;
 
         match event::read()? {
