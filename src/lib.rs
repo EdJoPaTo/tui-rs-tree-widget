@@ -11,9 +11,9 @@ The user interaction state (like the current selection) is stored in the [`TreeS
 use std::collections::HashSet;
 
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Corner, Rect};
+use ratatui::layout::{Corner, Margin, Rect};
 use ratatui::style::Style;
-use ratatui::widgets::{Block, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
@@ -60,6 +60,8 @@ pub struct Tree<'a, Identifier> {
     items: Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
+    scrollbar: Option<Scrollbar<'a>>,
+    scrollbar_margin: Margin,
     start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
@@ -101,6 +103,8 @@ where
         Ok(Self {
             items,
             block: None,
+            scrollbar: None,
+            scrollbar_margin: Margin::new(0, 0),
             start_corner: Corner::TopLeft,
             style: Style::new(),
             highlight_style: Style::new(),
@@ -115,6 +119,18 @@ where
     #[must_use]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
+        self
+    }
+
+    #[must_use]
+    pub const fn scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
+        self.scrollbar = scrollbar;
+        self
+    }
+
+    #[must_use]
+    pub const fn scrollbar_margin(mut self, margin: Margin) -> Self {
+        self.scrollbar_margin = margin;
         self
     }
 
@@ -176,13 +192,13 @@ where
     type State = TreeState<Identifier>;
 
     #[allow(clippy::too_many_lines)]
-    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        buf.set_style(area, self.style);
+    fn render(self, full_area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        buf.set_style(full_area, self.style);
 
         // Get the inner area inside a possible block, otherwise use the full area
-        let area = self.block.map_or(area, |block| {
-            let inner_area = block.inner(area);
-            block.render(area, buf);
+        let area = self.block.map_or(full_area, |block| {
+            let inner_area = block.inner(full_area);
+            block.render(full_area, buf);
             inner_area
         });
 
@@ -234,6 +250,14 @@ where
 
         state.offset = start;
         state.ensure_selected_in_view_on_next_render = false;
+
+        if let Some(scrollbar) = self.scrollbar {
+            let mut scrollbar_state = ScrollbarState::new(visible.len())
+                .position(start)
+                .viewport_content_length(available_height);
+            let scrollbar_area = full_area.inner(&self.scrollbar_margin);
+            scrollbar.render(scrollbar_area, buf, &mut scrollbar_state);
+        }
 
         let blank_symbol = " ".repeat(self.highlight_symbol.width());
 

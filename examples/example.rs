@@ -5,8 +5,9 @@ use crossterm::{
 };
 use ratatui::{
     backend::{Backend, CrosstermBackend},
+    layout::Margin,
     style::{Color, Modifier, Style},
-    widgets::Block,
+    widgets::{Block, Scrollbar, ScrollbarOrientation},
     Terminal,
 };
 use std::error::Error;
@@ -117,10 +118,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
     loop {
         terminal.draw(|frame| {
             let area = frame.size();
-
             let widget = Tree::new(app.items.clone())
                 .expect("all item identifiers are unique")
                 .block(Block::bordered().title(format!("Tree Widget {:?}", app.state)))
+                .scrollbar_margin(Margin::new(0, 1))
+                .scrollbar(Some(
+                    Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                        .begin_symbol(None)
+                        .track_symbol(None)
+                        .end_symbol(None),
+                ))
                 .highlight_style(
                     Style::new()
                         .fg(Color::Black)
