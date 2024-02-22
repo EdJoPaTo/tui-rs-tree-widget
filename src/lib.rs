@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![warn(clippy::pedantic, clippy::nursery)]
 
 /*!
 Widget built to show Tree Data structures.
