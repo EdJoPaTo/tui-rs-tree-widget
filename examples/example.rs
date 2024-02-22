@@ -92,8 +92,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
     loop {
-        terminal.draw(|f| {
-            let area = f.size();
+        terminal.draw(|frame| {
+            let area = frame.size();
 
             let items = Tree::new(app.items.clone())
                 .expect("all item identifiers are unique")
@@ -105,7 +105,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol(">> ");
-            f.render_stateful_widget(items, area, &mut app.state);
+            frame.render_stateful_widget(items, area, &mut app.state);
         })?;
 
         match event::read()? {

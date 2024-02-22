@@ -75,7 +75,7 @@ where
     {
         let identifiers = children
             .iter()
-            .map(|o| &o.identifier)
+            .map(|item| &item.identifier)
             .collect::<HashSet<_>>();
         if identifiers.len() != children.len() {
             return Err(std::io::Error::new(
@@ -131,7 +131,7 @@ where
         let existing = self
             .children
             .iter()
-            .map(|o| &o.identifier)
+            .map(|item| &item.identifier)
             .collect::<HashSet<_>>();
         if existing.contains(&child.identifier) {
             return Err(std::io::Error::new(
@@ -148,16 +148,16 @@ where
 #[test]
 #[should_panic = "duplicate identifiers"]
 fn tree_item_new_errors_with_duplicate_identifiers() {
-    let a = Item::new_leaf("same", "text");
-    let b = a.clone();
-    Item::new("root", "Root", vec![a, b]).unwrap();
+    let item = Item::new_leaf("same", "text");
+    let another = item.clone();
+    Item::new("root", "Root", vec![item, another]).unwrap();
 }
 
 #[test]
 #[should_panic = "identifier already exists"]
 fn tree_item_add_child_errors_with_duplicate_identifiers() {
-    let a = Item::new_leaf("same", "text");
-    let b = a.clone();
-    let mut root = Item::new("root", "Root", vec![a]).unwrap();
-    root.add_child(b).unwrap();
+    let item = Item::new_leaf("same", "text");
+    let another = item.clone();
+    let mut root = Item::new("root", "Root", vec![item]).unwrap();
+    root.add_child(another).unwrap();
 }

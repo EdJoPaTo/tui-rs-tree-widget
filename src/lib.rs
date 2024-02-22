@@ -44,14 +44,14 @@ pub use crate::state::State as TreeState;
 /// let item = TreeItem::new_leaf("l", "leaf");
 /// let items = vec![item];
 ///
-/// terminal.draw(|f| {
-///     let area = f.size();
+/// terminal.draw(|frame| {
+///     let area = frame.size();
 ///
 ///     let tree_widget = Tree::new(items)
 ///         .expect("all item identifiers are unique")
 ///         .block(Block::bordered().title("Tree Widget"));
 ///
-///     f.render_stateful_widget(tree_widget, area, &mut state);
+///     frame.render_stateful_widget(tree_widget, area, &mut state);
 /// })?;
 /// # Ok::<(), std::io::Error>(())
 /// ```
@@ -87,7 +87,10 @@ where
     ///
     /// Errors when there are duplicate identifiers in the children.
     pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
-        let identifiers = items.iter().map(|o| &o.identifier).collect::<HashSet<_>>();
+        let identifiers = items
+            .iter()
+            .map(|item| &item.identifier)
+            .collect::<HashSet<_>>();
         if identifiers.len() != items.len() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::AlreadyExists,
@@ -161,9 +164,9 @@ where
 #[test]
 #[should_panic = "duplicate identifiers"]
 fn tree_new_errors_with_duplicate_identifiers() {
-    let a = TreeItem::new_leaf("same", "text");
-    let b = a.clone();
-    Tree::new(vec![a, b]).unwrap();
+    let item = TreeItem::new_leaf("same", "text");
+    let another = item.clone();
+    Tree::new(vec![item, another]).unwrap();
 }
 
 impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>
@@ -177,9 +180,9 @@ where
         buf.set_style(area, self.style);
 
         // Get the inner area inside a possible block, otherwise use the full area
-        let area = self.block.map_or(area, |b| {
-            let inner_area = b.inner(area);
-            b.render(area, buf);
+        let area = self.block.map_or(area, |block| {
+            let inner_area = block.inner(area);
+            block.render(area, buf);
             inner_area
         });
 
@@ -198,7 +201,7 @@ where
         } else {
             visible
                 .iter()
-                .position(|o| o.identifier == state.selected)
+                .position(|flattened| flattened.identifier == state.selected)
                 .unwrap_or(0)
         };
 

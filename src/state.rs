@@ -112,7 +112,7 @@ where
     pub fn select_first(&mut self, items: &[Item<Identifier>]) -> bool {
         let identifier = items
             .first()
-            .map(|o| vec![o.identifier.clone()])
+            .map(|item| vec![item.identifier.clone()])
             .unwrap_or_default();
         self.select(identifier)
     }
@@ -124,7 +124,7 @@ where
         let visible = self.flatten(items);
         let new_identifier = visible
             .last()
-            .map(|o| o.identifier.clone())
+            .map(|flattened| flattened.identifier.clone())
             .unwrap_or_default();
         self.select(new_identifier)
     }
@@ -139,7 +139,7 @@ where
         let new_index = new_index.min(visible.len().saturating_sub(1));
         let new_identifier = visible
             .get(new_index)
-            .map(|o| o.identifier.clone())
+            .map(|flattened| flattened.identifier.clone())
             .unwrap_or_default();
         self.select(new_identifier)
     }
@@ -163,7 +163,11 @@ where
     ///
     /// For more examples take a look into the source code of [`key_up`](State::key_up) or [`key_down`](State::key_down).
     /// They are implemented with this method.
-    pub fn select_visible_relative<F>(&mut self, items: &[Item<Identifier>], f: F) -> bool
+    pub fn select_visible_relative<F>(
+        &mut self,
+        items: &[Item<Identifier>],
+        change_function: F,
+    ) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
@@ -171,11 +175,11 @@ where
         let current_identifier = self.selected();
         let current_index = visible
             .iter()
-            .position(|o| o.identifier == current_identifier);
-        let new_index = f(current_index).min(visible.len().saturating_sub(1));
+            .position(|flattened| flattened.identifier == current_identifier);
+        let new_index = change_function(current_index).min(visible.len().saturating_sub(1));
         let new_identifier = visible
             .get(new_index)
-            .map(|o| o.identifier.clone())
+            .map(|flattened| flattened.identifier.clone())
             .unwrap_or_default();
         self.select(new_identifier)
     }
