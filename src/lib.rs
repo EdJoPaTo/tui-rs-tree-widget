@@ -228,17 +228,20 @@ where
 
         let mut end = start;
         let mut height = 0;
-        for Flattened { item, .. } in visible.iter().skip(start) {
-            if height + item.height() > available_height {
+        for item_height in visible
+            .iter()
+            .skip(start)
+            .map(|flattened| flattened.item.height())
+        {
+            if height + item_height > available_height {
                 break;
             }
-
-            height += item.height();
+            height += item_height;
             end += 1;
         }
 
         while state.ensure_selected_in_view_on_next_render && selected_index >= end {
-            height = height.saturating_add(visible[end].item.height());
+            height += visible[end].item.height();
             end += 1;
             while height > available_height {
                 height = height.saturating_sub(visible[start].item.height());
@@ -271,13 +274,14 @@ where
 
             let x = area.x;
             let y = area.y + current_height;
-            current_height += item.height() as u16;
+            let height = item.height() as u16;
+            current_height += height;
 
             let area = Rect {
                 x,
                 y,
                 width: area.width,
-                height: item.height() as u16,
+                height,
             };
 
             let item_style = self.style.patch(item.style);
