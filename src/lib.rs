@@ -11,9 +11,9 @@ The user interaction state (like the current selection) is stored in the [`TreeS
 use std::collections::HashSet;
 
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Corner, Margin, Rect};
+use ratatui::layout::{Corner, Rect};
 use ratatui::style::Style;
-use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
+use ratatui::widgets::{Block, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
@@ -60,8 +60,10 @@ pub struct Tree<'a, Identifier> {
     items: Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
-    scrollbar: Option<Scrollbar<'a>>,
-    scrollbar_margin: Margin,
+    #[cfg(feature = "experimental_scrollbar")]
+    scrollbar: Option<ratatui::widgets::Scrollbar<'a>>,
+    #[cfg(feature = "experimental_scrollbar")]
+    scrollbar_margin: ratatui::layout::Margin,
     start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
@@ -103,8 +105,10 @@ where
         Ok(Self {
             items,
             block: None,
+            #[cfg(feature = "experimental_scrollbar")]
             scrollbar: None,
-            scrollbar_margin: Margin::new(0, 0),
+            #[cfg(feature = "experimental_scrollbar")]
+            scrollbar_margin: ratatui::layout::Margin::new(0, 0),
             start_corner: Corner::TopLeft,
             style: Style::new(),
             highlight_style: Style::new(),
@@ -122,14 +126,16 @@ where
         self
     }
 
+    #[cfg(feature = "experimental_scrollbar")]
     #[must_use]
-    pub const fn scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
+    pub const fn scrollbar(mut self, scrollbar: Option<ratatui::widgets::Scrollbar<'a>>) -> Self {
         self.scrollbar = scrollbar;
         self
     }
 
+    #[cfg(feature = "experimental_scrollbar")]
     #[must_use]
-    pub const fn scrollbar_margin(mut self, margin: Margin) -> Self {
+    pub const fn scrollbar_margin(mut self, margin: ratatui::layout::Margin) -> Self {
         self.scrollbar_margin = margin;
         self
     }
@@ -251,8 +257,9 @@ where
         state.offset = start;
         state.ensure_selected_in_view_on_next_render = false;
 
+        #[cfg(feature = "experimental_scrollbar")]
         if let Some(scrollbar) = self.scrollbar {
-            let mut scrollbar_state = ScrollbarState::new(visible.len())
+            let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(visible.len())
                 .position(start)
                 .viewport_content_length(available_height);
             let scrollbar_area = full_area.inner(&self.scrollbar_margin);
