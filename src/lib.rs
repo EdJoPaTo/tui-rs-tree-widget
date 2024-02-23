@@ -228,12 +228,12 @@ where
 
         let mut end = start;
         let mut height = 0;
-        for item in visible.iter().skip(start) {
-            if height + item.item.height() > available_height {
+        for Flattened { item, .. } in visible.iter().skip(start) {
+            if height + item.height() > available_height {
                 break;
             }
 
-            height += item.item.height();
+            height += item.height();
             end += 1;
         }
 
@@ -263,22 +263,27 @@ where
         let mut current_height = 0;
         let has_selection = !state.selected.is_empty();
         #[allow(clippy::cast_possible_truncation)]
-        for item in visible.iter().skip(state.offset).take(end - start) {
+        for flattened in visible.into_iter().skip(state.offset).take(end - start) {
+            let Flattened {
+                ref identifier,
+                item,
+            } = flattened;
+
             let x = area.x;
             let y = area.y + current_height;
-            current_height += item.item.height() as u16;
+            current_height += item.height() as u16;
 
             let area = Rect {
                 x,
                 y,
                 width: area.width,
-                height: item.item.height() as u16,
+                height: item.height() as u16,
             };
 
-            let item_style = self.style.patch(item.item.style);
+            let item_style = self.style.patch(item.style);
             buf.set_style(area, item_style);
 
-            let is_selected = state.selected == item.identifier;
+            let is_selected = state.selected == *identifier;
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
                     self.highlight_symbol
@@ -292,7 +297,7 @@ where
             };
 
             let after_depth_x = {
-                let indent_width = item.depth() * 2;
+                let indent_width = flattened.depth() * 2;
                 let (after_indent_x, _) = buf.set_stringn(
                     after_highlight_symbol_x,
                     y,
@@ -300,9 +305,9 @@ where
                     indent_width,
                     item_style,
                 );
-                let symbol = if item.item.children.is_empty() {
+                let symbol = if item.children.is_empty() {
                     self.node_no_children_symbol
-                } else if state.opened.contains(&item.identifier) {
+                } else if state.opened.contains(identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
@@ -314,7 +319,7 @@ where
             };
 
             let max_element_width = area.width.saturating_sub(after_depth_x - x);
-            for (j, line) in item.item.text.lines.iter().enumerate() {
+            for (j, line) in item.text.lines.iter().enumerate() {
                 buf.set_line(after_depth_x, y + j as u16, line, max_element_width);
             }
             if is_selected {
