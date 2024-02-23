@@ -11,7 +11,7 @@ The user interaction state (like the current selection) is stored in the [`TreeS
 use std::collections::HashSet;
 
 use ratatui::buffer::Buffer;
-use ratatui::layout::{Corner, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
@@ -64,7 +64,6 @@ pub struct Tree<'a, Identifier> {
     scrollbar: Option<ratatui::widgets::Scrollbar<'a>>,
     #[cfg(feature = "experimental_scrollbar")]
     scrollbar_margin: ratatui::layout::Margin,
-    start_corner: Corner,
     /// Style used as a base style for the widget
     style: Style,
 
@@ -109,7 +108,6 @@ where
             scrollbar: None,
             #[cfg(feature = "experimental_scrollbar")]
             scrollbar_margin: ratatui::layout::Margin::new(0, 0),
-            start_corner: Corner::TopLeft,
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_symbol: "",
@@ -137,12 +135,6 @@ where
     #[must_use]
     pub const fn scrollbar_margin(mut self, margin: ratatui::layout::Margin) -> Self {
         self.scrollbar_margin = margin;
-        self
-    }
-
-    #[must_use]
-    pub const fn start_corner(mut self, corner: Corner) -> Self {
-        self.start_corner = corner;
         self
     }
 
@@ -272,18 +264,10 @@ where
         let has_selection = !state.selected.is_empty();
         #[allow(clippy::cast_possible_truncation)]
         for item in visible.iter().skip(state.offset).take(end - start) {
-            #[allow(clippy::single_match_else)] // Keep same as List impl
-            let (x, y) = match self.start_corner {
-                Corner::BottomLeft => {
-                    current_height += item.item.height() as u16;
-                    (area.left(), area.bottom() - current_height)
-                }
-                _ => {
-                    let pos = (area.left(), area.top() + current_height);
-                    current_height += item.item.height() as u16;
-                    pos
-                }
-            };
+            let x = area.x;
+            let y = area.y + current_height;
+            current_height += item.item.height() as u16;
+
             let area = Rect {
                 x,
                 y,
