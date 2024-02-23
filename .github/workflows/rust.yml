@@ -3,6 +3,7 @@ name: Test and Build Rust
 on:
   push:
   pull_request:
+  workflow_dispatch:
   schedule:
     # Check if it works with current dependencies
     - cron: '42 2 * * 6' # weekly on Saturday 2:42 UTC
