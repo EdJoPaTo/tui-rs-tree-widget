@@ -253,7 +253,7 @@ where
         if let Some(scrollbar) = self.scrollbar {
             let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(visible.len())
                 .position(start)
-                .viewport_content_length(available_height);
+                .viewport_content_length(height);
             let scrollbar_area = full_area.inner(&self.scrollbar_margin);
             scrollbar.render(scrollbar_area, buf, &mut scrollbar_state);
         }
