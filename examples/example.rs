@@ -5,7 +5,6 @@ use crossterm::{
 };
 use ratatui::{
     backend::{Backend, CrosstermBackend},
-    layout::Margin,
     style::{Color, Modifier, Style},
     widgets::{Block, Scrollbar, ScrollbarOrientation},
     Terminal,
@@ -125,7 +124,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         .title("Tree Widget")
                         .title_bottom(format!("{:?}", app.state)),
                 )
-                .scrollbar_margin(Margin::new(0, 1))
+                .scrollbar_margin((1, 1))
                 .scrollbar(Some(
                     Scrollbar::new(ScrollbarOrientation::VerticalRight)
                         .begin_symbol(None)

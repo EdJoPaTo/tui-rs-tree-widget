@@ -63,7 +63,7 @@ pub struct Tree<'a, Identifier> {
     #[cfg(feature = "experimental_scrollbar")]
     scrollbar: Option<ratatui::widgets::Scrollbar<'a>>,
     #[cfg(feature = "experimental_scrollbar")]
-    scrollbar_margin: ratatui::layout::Margin,
+    scrollbar_margin: (u16, u16),
     /// Style used as a base style for the widget
     style: Style,
 
@@ -107,7 +107,7 @@ where
             #[cfg(feature = "experimental_scrollbar")]
             scrollbar: None,
             #[cfg(feature = "experimental_scrollbar")]
-            scrollbar_margin: ratatui::layout::Margin::new(0, 0),
+            scrollbar_margin: (0, 0),
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_symbol: "",
@@ -133,7 +133,7 @@ where
 
     #[cfg(feature = "experimental_scrollbar")]
     #[must_use]
-    pub const fn scrollbar_margin(mut self, margin: ratatui::layout::Margin) -> Self {
+    pub const fn scrollbar_margin(mut self, margin: (u16, u16)) -> Self {
         self.scrollbar_margin = margin;
         self
     }
@@ -257,7 +257,14 @@ where
             let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(visible.len())
                 .position(start)
                 .viewport_content_length(height);
-            let scrollbar_area = full_area.inner(&self.scrollbar_margin);
+            let scrollbar_area = Rect {
+                y: full_area.y.saturating_add(self.scrollbar_margin.0),
+                height: full_area
+                    .height
+                    .saturating_sub(self.scrollbar_margin.0)
+                    .saturating_sub(self.scrollbar_margin.1),
+                ..full_area
+            };
             scrollbar.render(scrollbar_area, buf, &mut scrollbar_state);
         }
 
