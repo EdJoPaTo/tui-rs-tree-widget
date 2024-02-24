@@ -133,8 +133,8 @@ where
 
     /// See [`experimental_scrollbar`](Self::experimental_scrollbar)
     #[must_use]
-    pub const fn experimental_scrollbar_margin(mut self, margin: (u16, u16)) -> Self {
-        self.scrollbar_margin = margin;
+    pub const fn experimental_scrollbar_margin(mut self, begin: u16, end: u16) -> Self {
+        self.scrollbar_margin = (begin, end);
         self
     }
 
