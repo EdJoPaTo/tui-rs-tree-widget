@@ -61,7 +61,6 @@ pub struct Tree<'a, Identifier> {
 
     block: Option<Block<'a>>,
     scrollbar: Option<Scrollbar<'a>>,
-    scrollbar_margin: (u16, u16),
     /// Style used as a base style for the widget
     style: Style,
 
@@ -103,7 +102,6 @@ where
             items,
             block: None,
             scrollbar: None,
-            scrollbar_margin: (0, 0),
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_symbol: "",
@@ -128,13 +126,6 @@ where
     #[must_use]
     pub const fn experimental_scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
         self.scrollbar = scrollbar;
-        self
-    }
-
-    /// See [`experimental_scrollbar`](Self::experimental_scrollbar)
-    #[must_use]
-    pub const fn experimental_scrollbar_margin(mut self, begin: u16, end: u16) -> Self {
-        self.scrollbar_margin = (begin, end);
         self
     }
 
@@ -257,12 +248,12 @@ where
                 .position(start)
                 .viewport_content_length(height);
             let scrollbar_area = Rect {
-                y: full_area.y.saturating_add(self.scrollbar_margin.0),
-                height: full_area
-                    .height
-                    .saturating_sub(self.scrollbar_margin.0)
-                    .saturating_sub(self.scrollbar_margin.1),
-                ..full_area
+                // Inner height to be exactly as the content
+                y: area.y,
+                height: area.height,
+                // Outer width to stay on the right border
+                x: full_area.x,
+                width: full_area.width,
             };
             scrollbar.render(scrollbar_area, buf, &mut scrollbar_state);
         }

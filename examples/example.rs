@@ -119,7 +119,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                         .title("Tree Widget")
                         .title_bottom(format!("{:?}", app.state)),
                 )
-                .experimental_scrollbar_margin(1, 1)
                 .experimental_scrollbar(Some(
                     Scrollbar::new(ScrollbarOrientation::VerticalRight)
                         .begin_symbol(None)
