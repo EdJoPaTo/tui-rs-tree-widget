@@ -1,16 +1,8 @@
-use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    backend::{Backend, CrosstermBackend},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Scrollbar, ScrollbarOrientation},
-    Terminal,
-};
-use std::error::Error;
-use std::io;
+use crossterm::event::{Event, KeyCode, MouseEventKind};
+use ratatui::backend::{Backend, CrosstermBackend};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
+use ratatui::Terminal;
 
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
@@ -85,24 +77,27 @@ impl<'a> App<'a> {
     }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> std::io::Result<()> {
     // Terminal initialization
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    crossterm::terminal::enable_raw_mode()?;
+    let mut stdout = std::io::stdout();
+    crossterm::execute!(
+        stdout,
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::event::EnableMouseCapture
+    )?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
 
     // App
     let app = App::new();
     let res = run_app(&mut terminal, app);
 
     // restore terminal
-    disable_raw_mode()?;
-    execute!(
+    crossterm::terminal::disable_raw_mode()?;
+    crossterm::execute!(
         terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
+        crossterm::terminal::LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture
     )?;
     terminal.show_cursor()?;
 
@@ -113,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     loop {
         terminal.draw(|frame| {
             let area = frame.size();
@@ -141,7 +136,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
             frame.render_stateful_widget(widget, area, &mut app.state);
         })?;
 
-        match event::read()? {
+        match crossterm::event::read()? {
             Event::Key(key) => match key.code {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
@@ -160,8 +155,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                 _ => {}
             },
             Event::Mouse(mouse) => match mouse.kind {
-                event::MouseEventKind::ScrollDown => app.state.scroll_down(1),
-                event::MouseEventKind::ScrollUp => app.state.scroll_up(1),
+                MouseEventKind::ScrollDown => app.state.scroll_down(1),
+                MouseEventKind::ScrollUp => app.state.scroll_up(1),
                 _ => {}
             },
             _ => {}
