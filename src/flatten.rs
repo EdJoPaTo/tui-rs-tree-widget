@@ -85,7 +85,7 @@ fn get_opened_nothing_opened_is_top_level() {
     let opened = HashSet::new();
     let result = flatten(&opened, &items);
     let result_text = result
-        .iter()
+        .into_iter()
         .map(|flattened| flattened.item.identifier)
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "h"]);
@@ -99,7 +99,7 @@ fn get_opened_wrong_opened_is_only_top_level() {
     opened.insert(vec!["b", "d"]);
     let result = flatten(&opened, &items);
     let result_text = result
-        .iter()
+        .into_iter()
         .map(|flattened| flattened.item.identifier)
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "h"]);
@@ -112,7 +112,7 @@ fn get_opened_one_is_opened() {
     opened.insert(vec!["b"]);
     let result = flatten(&opened, &items);
     let result_text = result
-        .iter()
+        .into_iter()
         .map(|flattened| flattened.item.identifier)
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "c", "d", "g", "h"]);
@@ -126,7 +126,7 @@ fn get_opened_all_opened() {
     opened.insert(vec!["b", "d"]);
     let result = flatten(&opened, &items);
     let result_text = result
-        .iter()
+        .into_iter()
         .map(|flattened| flattened.item.identifier)
         .collect::<Vec<_>>();
     assert_eq!(result_text, ["a", "b", "c", "d", "e", "f", "g", "h"]);

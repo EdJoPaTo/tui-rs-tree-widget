@@ -112,8 +112,7 @@ where
     pub fn select_first(&mut self, items: &[Item<Identifier>]) -> bool {
         let identifier = items
             .first()
-            .map(|item| vec![item.identifier.clone()])
-            .unwrap_or_default();
+            .map_or(Vec::new(), |item| vec![item.identifier.clone()]);
         self.select(identifier)
     }
 
@@ -123,9 +122,9 @@ where
     pub fn select_last(&mut self, items: &[Item<Identifier>]) -> bool {
         let visible = self.flatten(items);
         let new_identifier = visible
+            .into_iter()
             .last()
-            .map(|flattened| flattened.identifier.clone())
-            .unwrap_or_default();
+            .map_or(Vec::new(), |flattened| flattened.identifier);
         self.select(new_identifier)
     }
 
@@ -138,9 +137,9 @@ where
         let visible = self.flatten(items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
         let new_identifier = visible
-            .get(new_index)
-            .map(|flattened| flattened.identifier.clone())
-            .unwrap_or_default();
+            .into_iter()
+            .nth(new_index)
+            .map_or(Vec::new(), |flattened| flattened.identifier);
         self.select(new_identifier)
     }
 
@@ -178,9 +177,9 @@ where
             .position(|flattened| flattened.identifier == current_identifier);
         let new_index = change_function(current_index).min(visible.len().saturating_sub(1));
         let new_identifier = visible
-            .get(new_index)
-            .map(|flattened| flattened.identifier.clone())
-            .unwrap_or_default();
+            .into_iter()
+            .nth(new_index)
+            .map_or(Vec::new(), |flattened| flattened.identifier);
         self.select(new_identifier)
     }
 
