@@ -13,7 +13,7 @@ use std::collections::HashSet;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
-use ratatui::widgets::{Block, StatefulWidget, Widget};
+use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
@@ -60,9 +60,7 @@ pub struct Tree<'a, Identifier> {
     items: Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
-    #[cfg(feature = "experimental_scrollbar")]
-    scrollbar: Option<ratatui::widgets::Scrollbar<'a>>,
-    #[cfg(feature = "experimental_scrollbar")]
+    scrollbar: Option<Scrollbar<'a>>,
     scrollbar_margin: (u16, u16),
     /// Style used as a base style for the widget
     style: Style,
@@ -104,9 +102,7 @@ where
         Ok(Self {
             items,
             block: None,
-            #[cfg(feature = "experimental_scrollbar")]
             scrollbar: None,
-            #[cfg(feature = "experimental_scrollbar")]
             scrollbar_margin: (0, 0),
             style: Style::new(),
             highlight_style: Style::new(),
@@ -124,16 +120,20 @@ where
         self
     }
 
-    #[cfg(feature = "experimental_scrollbar")]
+    /// Show the scrollbar when rendering this widget.
+    ///
+    /// Experimental: Can change on any release without any additional notice.
+    /// Its there to test and experiment with whats possible with scrolling widgets.
+    /// Also see <https://github.com/ratatui-org/ratatui/issues/174>
     #[must_use]
-    pub const fn scrollbar(mut self, scrollbar: Option<ratatui::widgets::Scrollbar<'a>>) -> Self {
+    pub const fn experimental_scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
         self.scrollbar = scrollbar;
         self
     }
 
-    #[cfg(feature = "experimental_scrollbar")]
+    /// See [`experimental_scrollbar`](Self::experimental_scrollbar)
     #[must_use]
-    pub const fn scrollbar_margin(mut self, margin: (u16, u16)) -> Self {
+    pub const fn experimental_scrollbar_margin(mut self, margin: (u16, u16)) -> Self {
         self.scrollbar_margin = margin;
         self
     }
@@ -252,12 +252,10 @@ where
         state.offset = start;
         state.ensure_selected_in_view_on_next_render = false;
 
-        #[cfg(feature = "experimental_scrollbar")]
         if let Some(scrollbar) = self.scrollbar {
-            let mut scrollbar_state =
-                ratatui::widgets::ScrollbarState::new(visible.len().saturating_sub(height))
-                    .position(start)
-                    .viewport_content_length(height);
+            let mut scrollbar_state = ScrollbarState::new(visible.len().saturating_sub(height))
+                .position(start)
+                .viewport_content_length(height);
             let scrollbar_area = Rect {
                 y: full_area.y.saturating_add(self.scrollbar_margin.0),
                 height: full_area

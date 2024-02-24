@@ -40,7 +40,6 @@ jobs:
           - -D clippy::pedantic
         features:
           - "" # default features
-          - --all-features
         include:
           # Check future versions and maybe get some glances on soon to be lints
           - toolchain: beta
