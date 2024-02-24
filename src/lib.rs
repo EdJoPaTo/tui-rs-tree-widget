@@ -254,9 +254,10 @@ where
 
         #[cfg(feature = "experimental_scrollbar")]
         if let Some(scrollbar) = self.scrollbar {
-            let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(visible.len())
-                .position(start)
-                .viewport_content_length(height);
+            let mut scrollbar_state =
+                ratatui::widgets::ScrollbarState::new(visible.len().saturating_sub(height))
+                    .position(start)
+                    .viewport_content_length(height);
             let scrollbar_area = Rect {
                 y: full_area.y.saturating_add(self.scrollbar_margin.0),
                 height: full_area
