@@ -17,12 +17,10 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget}
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
-mod identifier;
 mod item;
 mod state;
 
 pub use crate::flatten::Flattened;
-pub use crate::identifier::get_without_leaf as get_identifier_without_leaf;
 pub use crate::item::Item as TreeItem;
 pub use crate::state::State as TreeState;
 
