@@ -143,6 +143,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 KeyCode::Right => app.state.key_right(),
                 KeyCode::Down => app.state.key_down(&app.items),
                 KeyCode::Up => app.state.key_up(&app.items),
+                KeyCode::Esc => {
+                    app.state.select(Vec::new());
+                }
                 KeyCode::Home => {
                     app.state.select_first(&app.items);
                 }

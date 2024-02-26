@@ -201,20 +201,20 @@ where
         }
         let available_height = area.height as usize;
 
-        let selected_index = if state.selected.is_empty() {
-            0
-        } else {
-            visible
-                .iter()
-                .position(|flattened| flattened.identifier == state.selected)
-                .unwrap_or(0)
-        };
+        let ensure_index_in_view =
+            if state.ensure_selected_in_view_on_next_render && !state.selected.is_empty() {
+                visible
+                    .iter()
+                    .position(|flattened| flattened.identifier == state.selected)
+            } else {
+                None
+            };
 
         // Ensure last line is still visible
         let mut start = state.offset.min(visible.len().saturating_sub(1));
 
-        if state.ensure_selected_in_view_on_next_render {
-            start = start.min(selected_index);
+        if let Some(ensure_index_in_view) = ensure_index_in_view {
+            start = start.min(ensure_index_in_view);
         }
 
         let mut end = start;
@@ -231,12 +231,14 @@ where
             end += 1;
         }
 
-        while state.ensure_selected_in_view_on_next_render && selected_index >= end {
-            height += visible[end].item.height();
-            end += 1;
-            while height > available_height {
-                height = height.saturating_sub(visible[start].item.height());
-                start += 1;
+        if let Some(ensure_index_in_view) = ensure_index_in_view {
+            while ensure_index_in_view >= end {
+                height += visible[end].item.height();
+                end += 1;
+                while height > available_height {
+                    height = height.saturating_sub(visible[start].item.height());
+                    start += 1;
+                }
             }
         }
 
