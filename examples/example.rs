@@ -134,10 +134,9 @@ fn main() -> std::io::Result<()> {
 }
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
+    terminal.draw(|frame| app.draw(frame))?;
     loop {
-        terminal.draw(|frame| app.draw(frame))?;
-
-        match crossterm::event::read()? {
+        let update = match crossterm::event::read()? {
             Event::Key(key) => match key.code {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
@@ -145,25 +144,22 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 KeyCode::Right => app.state.key_right(),
                 KeyCode::Down => app.state.key_down(&app.items),
                 KeyCode::Up => app.state.key_up(&app.items),
-                KeyCode::Esc => {
-                    app.state.select(Vec::new());
-                }
-                KeyCode::Home => {
-                    app.state.select_first(&app.items);
-                }
-                KeyCode::End => {
-                    app.state.select_last(&app.items);
-                }
+                KeyCode::Esc => app.state.select(Vec::new()),
+                KeyCode::Home => app.state.select_first(&app.items),
+                KeyCode::End => app.state.select_last(&app.items),
                 KeyCode::PageDown => app.state.scroll_down(3),
                 KeyCode::PageUp => app.state.scroll_up(3),
-                _ => {}
+                _ => false,
             },
             Event::Mouse(mouse) => match mouse.kind {
                 MouseEventKind::ScrollDown => app.state.scroll_down(1),
                 MouseEventKind::ScrollUp => app.state.scroll_up(1),
-                _ => {}
+                _ => false,
             },
-            _ => {}
+            _ => false,
+        };
+        if update {
+            terminal.draw(|frame| app.draw(frame))?;
         }
     }
 }

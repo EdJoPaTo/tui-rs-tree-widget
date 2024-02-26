@@ -61,9 +61,9 @@ where
     /// state.select(Vec::new());
     /// ```
     pub fn select(&mut self, identifier: Vec<Identifier>) -> bool {
+        self.ensure_selected_in_view_on_next_render = true;
         let changed = self.selected != identifier;
         self.selected = identifier;
-        self.ensure_selected_in_view_on_next_render = true;
         changed
     }
 
@@ -87,23 +87,39 @@ where
 
     /// Toggles a tree node.
     /// If the node is in opened then it calls [`close`](State::close). Otherwise it calls [`open`](State::open).
-    pub fn toggle(&mut self, identifier: Vec<Identifier>) {
-        if self.opened.contains(&identifier) {
-            self.close(&identifier);
+    ///
+    /// Returns `true` when a node is opened / closed.
+    /// As toggle always changes something, this only returns `false` when an empty identifier is given.
+    pub fn toggle(&mut self, identifier: Vec<Identifier>) -> bool {
+        if identifier.is_empty() {
+            false
+        } else if self.opened.contains(&identifier) {
+            self.close(&identifier)
         } else {
-            self.open(identifier);
+            self.open(identifier)
         }
     }
 
     /// Toggles the currently selected tree node.
     /// See also [`toggle`](State::toggle)
-    pub fn toggle_selected(&mut self) {
-        self.toggle(self.selected());
+    ///
+    /// Returns `true` when a node is opened / closed.
+    /// As toggle always changes something, this only returns `false` when nothing is selected.
+    pub fn toggle_selected(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
+        self.toggle(self.selected())
     }
 
-    pub fn close_all(&mut self) {
-        self.opened.clear();
+    /// Closes all open nodes.
+    ///
+    /// Returns `true` when any node was closed.
+    pub fn close_all(&mut self) -> bool {
+        if self.opened.is_empty() {
+            false
+        } else {
+            self.opened.clear();
+            true
+        }
     }
 
     /// Select the first node.
@@ -189,47 +205,67 @@ where
     }
 
     /// Scroll the specified amount of lines up
-    pub fn scroll_up(&mut self, lines: usize) {
+    ///
+    /// Returns `true` when the scroll position changed.
+    /// Returns `false` when the scrolling has reached the top.
+    pub fn scroll_up(&mut self, lines: usize) -> bool {
+        let before = self.offset;
         self.offset = self.offset.saturating_sub(lines);
+        before != self.offset
     }
 
     /// Scroll the specified amount of lines down
-    pub fn scroll_down(&mut self, lines: usize) {
+    ///
+    /// In contrast to [`scroll_up()`](Self::scroll_up) this can not return whether the view position changed or not as the actual change is determined on render.
+    /// Always returns `true`.
+    pub fn scroll_down(&mut self, lines: usize) -> bool {
         self.offset = self.offset.saturating_add(lines);
+        true
     }
 
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
-    pub fn key_up(&mut self, items: &[Item<Identifier>]) {
+    ///
+    /// Returns `true` when the selection changed.
+    pub fn key_up(&mut self, items: &[Item<Identifier>]) -> bool {
         self.select_visible_relative(items, |current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
-        });
+        })
     }
 
     /// Handles the down arrow key.
     /// Moves down in the current depth or into a child node.
-    pub fn key_down(&mut self, items: &[Item<Identifier>]) {
+    ///
+    /// Returns `true` when the selection changed.
+    pub fn key_down(&mut self, items: &[Item<Identifier>]) -> bool {
         self.select_visible_relative(items, |current| {
             current.map_or(0, |current| current.saturating_add(1))
-        });
+        })
     }
 
     /// Handles the left arrow key.
     /// Closes the currently selected or moves to its parent.
-    pub fn key_left(&mut self) {
+    ///
+    /// Returns `true` when the selection or the open state changed.
+    pub fn key_left(&mut self) -> bool {
+        self.ensure_selected_in_view_on_next_render = true;
         // Reimplement self.close because of multiple different borrows
-        let changed = self.opened.remove(&self.selected);
+        let mut changed = self.opened.remove(&self.selected);
         if !changed {
             // Select the parent by removing the leaf from selection
-            self.selected.pop();
+            let popped = self.selected.pop();
+            changed = popped.is_some();
         }
-        self.ensure_selected_in_view_on_next_render = true;
+        changed
     }
 
     /// Handles the right arrow key.
     /// Opens the currently selected.
-    pub fn key_right(&mut self) {
-        self.open(self.selected());
+    ///
+    /// Returns `true` if the node was closed and has been opened.
+    /// Returns `false` if the node was already open.
+    pub fn key_right(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
+        self.open(self.selected())
     }
 }
