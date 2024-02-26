@@ -2,7 +2,7 @@ use crossterm::event::{Event, KeyCode, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
-use ratatui::Terminal;
+use ratatui::{Frame, Terminal};
 
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
@@ -75,6 +75,31 @@ impl<'a> App<'a> {
             ],
         }
     }
+
+    fn draw(&mut self, frame: &mut Frame) {
+        let area = frame.size();
+        let widget = Tree::new(self.items.clone())
+            .expect("all item identifiers are unique")
+            .block(
+                Block::bordered()
+                    .title("Tree Widget")
+                    .title_bottom(format!("{:?}", self.state)),
+            )
+            .experimental_scrollbar(Some(
+                Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                    .begin_symbol(None)
+                    .track_symbol(None)
+                    .end_symbol(None),
+            ))
+            .highlight_style(
+                Style::new()
+                    .fg(Color::Black)
+                    .bg(Color::LightGreen)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol(">> ");
+        frame.render_stateful_widget(widget, area, &mut self.state);
+    }
 }
 
 fn main() -> std::io::Result<()> {
@@ -110,30 +135,7 @@ fn main() -> std::io::Result<()> {
 
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     loop {
-        terminal.draw(|frame| {
-            let area = frame.size();
-            let widget = Tree::new(app.items.clone())
-                .expect("all item identifiers are unique")
-                .block(
-                    Block::bordered()
-                        .title("Tree Widget")
-                        .title_bottom(format!("{:?}", app.state)),
-                )
-                .experimental_scrollbar(Some(
-                    Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                        .begin_symbol(None)
-                        .track_symbol(None)
-                        .end_symbol(None),
-                ))
-                .highlight_style(
-                    Style::new()
-                        .fg(Color::Black)
-                        .bg(Color::LightGreen)
-                        .add_modifier(Modifier::BOLD),
-                )
-                .highlight_symbol(">> ");
-            frame.render_stateful_widget(widget, area, &mut app.state);
-        })?;
+        terminal.draw(|frame| app.draw(frame))?;
 
         match crossterm::event::read()? {
             Event::Key(key) => match key.code {
