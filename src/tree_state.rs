@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use crate::flatten::{flatten, Flattened};
-use crate::item::Item;
+use crate::tree_item::TreeItem;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`](crate::Tree).
 ///
-/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](Item) in the [`TreeState`](State).
-/// For more information see [`TreeItem`](Item).
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`]s in the [`TreeState`].
+/// For more information see [`TreeItem`].
 ///
 /// # Example
 ///
@@ -17,14 +17,14 @@ use crate::item::Item;
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
 #[derive(Debug, Default, Clone)]
-pub struct State<Identifier> {
+pub struct TreeState<Identifier> {
     pub(super) offset: usize,
     pub(super) opened: HashSet<Vec<Identifier>>,
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
 }
 
-impl<Identifier> State<Identifier>
+impl<Identifier> TreeState<Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
@@ -38,9 +38,12 @@ where
         self.opened.iter().cloned().collect()
     }
 
-    /// Get a flat list of all visible (= below open) [`TreeItem`s](Item) with this `TreeState`.
+    /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
     #[must_use]
-    pub fn flatten<'a>(&self, items: &'a [Item<'a, Identifier>]) -> Vec<Flattened<'a, Identifier>> {
+    pub fn flatten<'a>(
+        &self,
+        items: &'a [TreeItem<'a, Identifier>],
+    ) -> Vec<Flattened<'a, Identifier>> {
         flatten(&self.opened, items)
     }
 
@@ -86,7 +89,7 @@ where
     }
 
     /// Toggles a tree node.
-    /// If the node is in opened then it calls [`close`](State::close). Otherwise it calls [`open`](State::open).
+    /// If the node is in opened then it calls [`close`](Self::close). Otherwise it calls [`open`](Self::open).
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when an empty identifier is given.
@@ -101,7 +104,7 @@ where
     }
 
     /// Toggles the currently selected tree node.
-    /// See also [`toggle`](State::toggle)
+    /// See also [`toggle`](Self::toggle)
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when nothing is selected.
@@ -125,7 +128,7 @@ where
     /// Select the first node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_first(&mut self, items: &[Item<Identifier>]) -> bool {
+    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         let identifier = items
             .first()
             .map_or(Vec::new(), |item| vec![item.identifier.clone()]);
@@ -135,7 +138,7 @@ where
     /// Select the last visible node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_last(&mut self, items: &[Item<Identifier>]) -> bool {
+    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         let visible = self.flatten(items);
         let new_identifier = visible
             .into_iter()
@@ -149,7 +152,11 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    pub fn select_visible_index(&mut self, items: &[Item<Identifier>], new_index: usize) -> bool {
+    pub fn select_visible_index(
+        &mut self,
+        items: &[TreeItem<Identifier>],
+        new_index: usize,
+    ) -> bool {
         let visible = self.flatten(items);
         let new_index = new_index.min(visible.len().saturating_sub(1));
         let new_identifier = visible
@@ -176,11 +183,11 @@ where
     /// });
     /// ```
     ///
-    /// For more examples take a look into the source code of [`key_up`](State::key_up) or [`key_down`](State::key_down).
+    /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
     /// They are implemented with this method.
     pub fn select_visible_relative<F>(
         &mut self,
-        items: &[Item<Identifier>],
+        items: &[TreeItem<Identifier>],
         change_function: F,
     ) -> bool
     where
@@ -199,7 +206,7 @@ where
         self.select(new_identifier)
     }
 
-    /// Ensure the selected [`TreeItem`](Item) is visible on next render
+    /// Ensure the selected [`TreeItem`] is visible on next render
     pub fn scroll_selected_into_view(&mut self) {
         self.ensure_selected_in_view_on_next_render = true;
     }
@@ -227,7 +234,7 @@ where
     /// Moves up in the current depth or to its parent.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_up(&mut self, items: &[Item<Identifier>]) -> bool {
+    pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         self.select_visible_relative(items, |current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         })
@@ -237,7 +244,7 @@ where
     /// Moves down in the current depth or into a child node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_down(&mut self, items: &[Item<Identifier>]) -> bool {
+    pub fn key_down(&mut self, items: &[TreeItem<Identifier>]) -> bool {
         self.select_visible_relative(items, |current| {
             current.map_or(0, |current| current.saturating_add(1))
         })

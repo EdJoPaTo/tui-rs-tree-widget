@@ -4,7 +4,7 @@
 /*!
 Widget built to show Tree Data structures.
 
-Tree widget [`Tree`] is generated with [`TreeItem`s](TreeItem) (which itself can contain [`TreeItem`] children to form the tree structure).
+Tree widget [`Tree`] is generated with [`TreeItem`]s (which itself can contain [`TreeItem`] children to form the tree structure).
 The user interaction state (like the current selection) is stored in the [`TreeState`].
 */
 
@@ -17,16 +17,16 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget}
 use unicode_width::UnicodeWidthStr;
 
 mod flatten;
-mod item;
-mod state;
+mod tree_item;
+mod tree_state;
 
 pub use crate::flatten::Flattened;
-pub use crate::item::Item as TreeItem;
-pub use crate::state::State as TreeState;
+pub use crate::tree_item::TreeItem;
+pub use crate::tree_state::TreeState;
 
 /// A `Tree` which can be rendered.
 ///
-/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](TreeItem) in the [`TreeState`].
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`]s in the [`TreeState`].
 /// For more information see [`TreeItem`].
 ///
 /// # Example

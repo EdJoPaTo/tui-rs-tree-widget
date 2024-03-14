@@ -9,9 +9,9 @@ use ratatui::text::Text;
 ///
 /// # Identifier
 ///
-/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`s](Item) in the [`TreeState`](crate::TreeState).
+/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`]s in the [`TreeState`](crate::TreeState).
 ///
-/// It needs to be unique among its siblings but can be used again on parent or child [`TreeItem`s](Item).
+/// It needs to be unique among its siblings but can be used again on parent or child [`TreeItem`]s.
 /// A common example would be a filename which has to be unique in its directory while it can exist in another.
 ///
 /// The `text` can be different from its `identifier`.
@@ -19,7 +19,7 @@ use ratatui::text::Text;
 /// The filename `main.rs` is the identifier while its shown as `main`.
 /// Two files `main.rs` and `main.toml` can exist in the same directory and can both be displayed as `main` but their identifier is different.
 ///
-/// Just like every file in a file system can be uniquely identified with its file and directory names each [`TreeItem`](Item) in a [`Tree`](crate::Tree) can be with these identifiers.
+/// Just like every file in a file system can be uniquely identified with its file and directory names each [`TreeItem`] in a [`Tree`](crate::Tree) can be with these identifiers.
 /// As an example the following two identifiers describe the main file in a Rust cargo project: `vec!["src", "main.rs"]`.
 ///
 /// The identifier does not need to be a `String` and is therefore generic.
@@ -35,14 +35,14 @@ use ratatui::text::Text;
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct Item<'a, Identifier> {
+pub struct TreeItem<'a, Identifier> {
     pub(super) identifier: Identifier,
     pub(super) text: Text<'a>,
     pub(super) style: Style,
-    pub(super) children: Vec<Item<'a, Identifier>>,
+    pub(super) children: Vec<TreeItem<'a, Identifier>>,
 }
 
-impl<'a, Identifier> Item<'a, Identifier>
+impl<'a, Identifier> TreeItem<'a, Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
@@ -68,7 +68,7 @@ where
     pub fn new<T>(
         identifier: Identifier,
         text: T,
-        children: Vec<Item<'a, Identifier>>,
+        children: Vec<TreeItem<'a, Identifier>>,
     ) -> std::io::Result<Self>
     where
         T: Into<Text<'a>>,
@@ -93,7 +93,7 @@ where
     }
 
     #[must_use]
-    pub fn children(&self) -> &[Item<Identifier>] {
+    pub fn children(&self) -> &[TreeItem<Identifier>] {
         &self.children
     }
 
@@ -127,7 +127,7 @@ where
     /// # Errors
     ///
     /// Errors when the `identifier` of the `child` already exists in the children.
-    pub fn add_child(&mut self, child: Item<'a, Identifier>) -> std::io::Result<()> {
+    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) -> std::io::Result<()> {
         let existing = self
             .children
             .iter()
@@ -148,16 +148,16 @@ where
 #[test]
 #[should_panic = "duplicate identifiers"]
 fn tree_item_new_errors_with_duplicate_identifiers() {
-    let item = Item::new_leaf("same", "text");
+    let item = TreeItem::new_leaf("same", "text");
     let another = item.clone();
-    Item::new("root", "Root", vec![item, another]).unwrap();
+    TreeItem::new("root", "Root", vec![item, another]).unwrap();
 }
 
 #[test]
 #[should_panic = "identifier already exists"]
 fn tree_item_add_child_errors_with_duplicate_identifiers() {
-    let item = Item::new_leaf("same", "text");
+    let item = TreeItem::new_leaf("same", "text");
     let another = item.clone();
-    let mut root = Item::new("root", "Root", vec![item]).unwrap();
+    let mut root = TreeItem::new("root", "Root", vec![item]).unwrap();
     root.add_child(another).unwrap();
 }

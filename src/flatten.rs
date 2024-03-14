@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use crate::item::Item;
+use crate::tree_item::TreeItem;
 
-/// A flattened item of all visible [`TreeItem`s](Item).
+/// A flattened item of all visible [`TreeItem`]s.
 ///
 /// Generated via [`TreeState::flatten`](crate::TreeState::flatten).
 pub struct Flattened<'a, Identifier> {
     pub identifier: Vec<Identifier>,
-    pub item: &'a Item<'a, Identifier>,
+    pub item: &'a TreeItem<'a, Identifier>,
 }
 
 impl<'a, Identifier> Flattened<'a, Identifier> {
@@ -17,11 +17,11 @@ impl<'a, Identifier> Flattened<'a, Identifier> {
     }
 }
 
-/// Get a flat list of all visible [`TreeItem`s](TreeItem).
+/// Get a flat list of all visible [`TreeItem`]s.
 #[must_use]
 pub fn flatten<'a, Identifier>(
     opened: &HashSet<Vec<Identifier>>,
-    items: &'a [Item<'a, Identifier>],
+    items: &'a [TreeItem<'a, Identifier>],
 ) -> Vec<Flattened<'a, Identifier>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
@@ -32,7 +32,7 @@ where
 #[must_use]
 fn internal<'a, Identifier>(
     opened: &HashSet<Vec<Identifier>>,
-    items: &'a [Item<'a, Identifier>],
+    items: &'a [TreeItem<'a, Identifier>],
     current: &[Identifier],
 ) -> Vec<Flattened<'a, Identifier>>
 where
@@ -57,25 +57,28 @@ where
 }
 
 #[cfg(test)]
-fn get_example_tree_items() -> Vec<Item<'static, &'static str>> {
+fn get_example_tree_items() -> Vec<TreeItem<'static, &'static str>> {
     vec![
-        Item::new_leaf("a", "Alfa"),
-        Item::new(
+        TreeItem::new_leaf("a", "Alfa"),
+        TreeItem::new(
             "b",
             "Bravo",
             vec![
-                Item::new_leaf("c", "Charlie"),
-                Item::new(
+                TreeItem::new_leaf("c", "Charlie"),
+                TreeItem::new(
                     "d",
                     "Delta",
-                    vec![Item::new_leaf("e", "Echo"), Item::new_leaf("f", "Foxtrot")],
+                    vec![
+                        TreeItem::new_leaf("e", "Echo"),
+                        TreeItem::new_leaf("f", "Foxtrot"),
+                    ],
                 )
                 .expect("all item identifiers are unique"),
-                Item::new_leaf("g", "Golf"),
+                TreeItem::new_leaf("g", "Golf"),
             ],
         )
         .expect("all item identifiers are unique"),
-        Item::new_leaf("h", "Hotel"),
+        TreeItem::new_leaf("h", "Hotel"),
     ]
 }
 
