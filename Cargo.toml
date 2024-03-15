@@ -11,6 +11,12 @@ categories = ["command-line-interface"]
 include = ["src/**/*", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lints.rust]
+unsafe_code = "forbid"
+[lints.clippy]
+pedantic = "warn"
+nursery = "warn"
+
 [dependencies]
 ratatui = { version = "0.26", default-features = false }
 unicode-width = "0.1"
