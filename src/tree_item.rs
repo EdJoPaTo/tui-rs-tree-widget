@@ -65,11 +65,7 @@ where
     /// # Errors
     ///
     /// Errors when there are duplicate identifiers in the children.
-    pub fn new<T>(
-        identifier: Identifier,
-        text: T,
-        children: Vec<TreeItem<'a, Identifier>>,
-    ) -> std::io::Result<Self>
+    pub fn new<T>(identifier: Identifier, text: T, children: Vec<Self>) -> std::io::Result<Self>
     where
         T: Into<Text<'a>>,
     {
@@ -127,7 +123,7 @@ where
     /// # Errors
     ///
     /// Errors when the `identifier` of the `child` already exists in the children.
-    pub fn add_child(&mut self, child: TreeItem<'a, Identifier>) -> std::io::Result<()> {
+    pub fn add_child(&mut self, child: Self) -> std::io::Result<()> {
         let existing = self
             .children
             .iter()
