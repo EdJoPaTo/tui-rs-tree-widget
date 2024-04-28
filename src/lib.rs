@@ -52,7 +52,7 @@ pub use crate::tree_state::TreeState;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a, Identifier> {
-    items: Vec<TreeItem<'a, Identifier>>,
+    items: &'a Vec<TreeItem<'a, Identifier>>,
 
     block: Option<Block<'a>>,
     scrollbar: Option<Scrollbar<'a>>,
@@ -81,7 +81,7 @@ where
     /// # Errors
     ///
     /// Errors when there are duplicate identifiers in the children.
-    pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
+    pub fn new(items: &'a Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
         let identifiers = items
             .iter()
             .map(|item| &item.identifier)
@@ -166,7 +166,7 @@ where
 fn tree_new_errors_with_duplicate_identifiers() {
     let item = TreeItem::new_leaf("same", "text");
     let another = item.clone();
-    Tree::new(vec![item, another]).unwrap();
+    Tree::new(&vec![item, another]).unwrap();
 }
 
 impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>
@@ -190,7 +190,7 @@ where
             return;
         }
 
-        let visible = state.flatten(&self.items);
+        let visible = state.flatten(self.items);
         if visible.is_empty() {
             return;
         }
