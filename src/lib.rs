@@ -191,6 +191,7 @@ where
         }
 
         let visible = state.flatten(&self.items);
+        state.last_biggest_index = visible.len().saturating_sub(1);
         if visible.is_empty() {
             return;
         }
@@ -206,7 +207,7 @@ where
             };
 
         // Ensure last line is still visible
-        let mut start = state.offset.min(visible.len().saturating_sub(1));
+        let mut start = state.offset.min(state.last_biggest_index);
 
         if let Some(ensure_index_in_view) = ensure_index_in_view {
             start = start.min(ensure_index_in_view);
@@ -260,11 +261,8 @@ where
         let mut current_height = 0;
         let has_selection = !state.selected.is_empty();
         #[allow(clippy::cast_possible_truncation)]
-        for flattened in visible.into_iter().skip(state.offset).take(end - start) {
-            let Flattened {
-                ref identifier,
-                item,
-            } = flattened;
+        for flattened in visible.iter().skip(state.offset).take(end - start) {
+            let Flattened { identifier, item } = flattened;
 
             let x = area.x;
             let y = area.y + current_height;
@@ -324,6 +322,10 @@ where
                 buf.set_style(area, self.highlight_style);
             }
         }
+        state.last_visible_identifiers = visible
+            .into_iter()
+            .map(|flattened| flattened.identifier)
+            .collect();
     }
 }
 
