@@ -141,6 +141,34 @@ where
     }
 }
 
+impl TreeItem<'static, &'static str> {
+    #[cfg(test)]
+    pub(crate) fn example() -> Vec<Self> {
+        vec![
+            TreeItem::new_leaf("a", "Alfa"),
+            TreeItem::new(
+                "b",
+                "Bravo",
+                vec![
+                    TreeItem::new_leaf("c", "Charlie"),
+                    TreeItem::new(
+                        "d",
+                        "Delta",
+                        vec![
+                            TreeItem::new_leaf("e", "Echo"),
+                            TreeItem::new_leaf("f", "Foxtrot"),
+                        ],
+                    )
+                    .expect("all item identifiers are unique"),
+                    TreeItem::new_leaf("g", "Golf"),
+                ],
+            )
+            .expect("all item identifiers are unique"),
+            TreeItem::new_leaf("h", "Hotel"),
+        ]
+    }
+}
+
 #[test]
 #[should_panic = "duplicate identifiers"]
 fn tree_item_new_errors_with_duplicate_identifiers() {

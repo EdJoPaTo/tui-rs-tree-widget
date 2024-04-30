@@ -16,12 +16,14 @@ use crate::tree_item::TreeItem;
 ///
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
     pub(super) opened: HashSet<Vec<Identifier>>,
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
+    pub(super) last_biggest_index: usize,
+    pub(super) last_visible_identifiers: Vec<Vec<Identifier>>,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -38,6 +40,11 @@ where
         self.opened.iter().cloned().collect()
     }
 
+    #[must_use]
+    pub fn selected(&self) -> Vec<Identifier> {
+        self.selected.clone()
+    }
+
     /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
     #[must_use]
     pub fn flatten<'a>(
@@ -45,11 +52,6 @@ where
         items: &'a [TreeItem<'a, Identifier>],
     ) -> Vec<Flattened<'a, Identifier>> {
         flatten(&self.opened, items)
-    }
-
-    #[must_use]
-    pub fn selected(&self) -> Vec<Identifier> {
-        self.selected.clone()
     }
 
     /// Selects the given identifier.
@@ -128,22 +130,24 @@ where
     /// Select the first node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        let identifier = items
+    pub fn select_first(&mut self) -> bool {
+        let identifier = self
+            .last_visible_identifiers
             .first()
-            .map_or(Vec::new(), |item| vec![item.identifier.clone()]);
+            .cloned()
+            .unwrap_or_default();
         self.select(identifier)
     }
 
     /// Select the last visible node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        let visible = self.flatten(items);
-        let new_identifier = visible
-            .into_iter()
+    pub fn select_last(&mut self) -> bool {
+        let new_identifier = self
+            .last_visible_identifiers
             .last()
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+            .cloned()
+            .unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -152,17 +156,13 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    pub fn select_visible_index(
-        &mut self,
-        items: &[TreeItem<Identifier>],
-        new_index: usize,
-    ) -> bool {
-        let visible = self.flatten(items);
-        let new_index = new_index.min(visible.len().saturating_sub(1));
-        let new_identifier = visible
-            .into_iter()
-            .nth(new_index)
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+    pub fn select_visible_index(&mut self, new_index: usize) -> bool {
+        let new_index = new_index.min(self.last_biggest_index);
+        let new_identifier = self
+            .last_visible_identifiers
+            .get(new_index)
+            .cloned()
+            .unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -174,35 +174,27 @@ where
     ///
     /// ```
     /// # use tui_tree_widget::TreeState;
-    /// # let items = vec![];
     /// # type Identifier = usize;
     /// # let mut state = TreeState::<Identifier>::default();
     /// // Move the selection one down
-    /// state.select_visible_relative(&items, |current| {
+    /// state.select_visible_relative(|current| {
     ///     current.map_or(0, |current| current.saturating_add(1))
     /// });
     /// ```
     ///
     /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
     /// They are implemented with this method.
-    pub fn select_visible_relative<F>(
-        &mut self,
-        items: &[TreeItem<Identifier>],
-        change_function: F,
-    ) -> bool
+    pub fn select_visible_relative<F>(&mut self, change_function: F) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
-        let visible = self.flatten(items);
-        let current_identifier = self.selected();
+        let visible = &self.last_visible_identifiers;
+        let current_identifier = &self.selected;
         let current_index = visible
             .iter()
-            .position(|flattened| flattened.identifier == current_identifier);
-        let new_index = change_function(current_index).min(visible.len().saturating_sub(1));
-        let new_identifier = visible
-            .into_iter()
-            .nth(new_index)
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+            .position(|identifier| identifier == current_identifier);
+        let new_index = change_function(current_index).min(self.last_biggest_index);
+        let new_identifier = visible.get(new_index).cloned().unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -223,19 +215,23 @@ where
 
     /// Scroll the specified amount of lines down
     ///
-    /// In contrast to [`scroll_up()`](Self::scroll_up) this can not return whether the view position changed or not as the actual change is determined on render.
-    /// Always returns `true`.
+    /// Returns `true` when the scroll position changed.
+    /// Returns `false` when the scrolling has reached the last [`TreeItem`].
     pub fn scroll_down(&mut self, lines: usize) -> bool {
-        self.offset = self.offset.saturating_add(lines);
-        true
+        let before = self.offset;
+        self.offset = self
+            .offset
+            .saturating_add(lines)
+            .min(self.last_biggest_index);
+        before != self.offset
     }
 
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        self.select_visible_relative(items, |current| {
+    pub fn key_up(&mut self) -> bool {
+        self.select_visible_relative(|current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         })
     }
@@ -244,8 +240,8 @@ where
     /// Moves down in the current depth or into a child node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_down(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        self.select_visible_relative(items, |current| {
+    pub fn key_down(&mut self) -> bool {
+        self.select_visible_relative(|current| {
             current.map_or(0, |current| current.saturating_add(1))
         })
     }

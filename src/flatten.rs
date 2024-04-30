@@ -56,35 +56,9 @@ where
     result
 }
 
-#[cfg(test)]
-fn get_example_tree_items() -> Vec<TreeItem<'static, &'static str>> {
-    vec![
-        TreeItem::new_leaf("a", "Alfa"),
-        TreeItem::new(
-            "b",
-            "Bravo",
-            vec![
-                TreeItem::new_leaf("c", "Charlie"),
-                TreeItem::new(
-                    "d",
-                    "Delta",
-                    vec![
-                        TreeItem::new_leaf("e", "Echo"),
-                        TreeItem::new_leaf("f", "Foxtrot"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("g", "Golf"),
-            ],
-        )
-        .expect("all item identifiers are unique"),
-        TreeItem::new_leaf("h", "Hotel"),
-    ]
-}
-
 #[test]
 fn get_opened_nothing_opened_is_top_level() {
-    let items = get_example_tree_items();
+    let items = TreeItem::example();
     let opened = HashSet::new();
     let result = flatten(&opened, &items);
     let result_text = result
@@ -96,7 +70,7 @@ fn get_opened_nothing_opened_is_top_level() {
 
 #[test]
 fn get_opened_wrong_opened_is_only_top_level() {
-    let items = get_example_tree_items();
+    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["a"]);
     opened.insert(vec!["b", "d"]);
@@ -110,7 +84,7 @@ fn get_opened_wrong_opened_is_only_top_level() {
 
 #[test]
 fn get_opened_one_is_opened() {
-    let items = get_example_tree_items();
+    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["b"]);
     let result = flatten(&opened, &items);
@@ -123,7 +97,7 @@ fn get_opened_one_is_opened() {
 
 #[test]
 fn get_opened_all_opened() {
-    let items = get_example_tree_items();
+    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["b"]);
     opened.insert(vec!["b", "d"]);
