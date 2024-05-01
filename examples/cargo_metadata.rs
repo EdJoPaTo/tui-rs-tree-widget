@@ -5,7 +5,6 @@ use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
-
 use serde_json::Value;
 use tui_tree_widget::{Selector, Tree, TreeState};
 
