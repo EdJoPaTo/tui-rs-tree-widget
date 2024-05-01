@@ -11,6 +11,9 @@ categories = ["command-line-interface"]
 include = ["src/**/*", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+serde_json = ["dep:serde_json"]
+
 [lints.rust]
 unsafe_code = "forbid"
 [lints.clippy]
@@ -24,6 +27,7 @@ lto = true
 
 [dependencies]
 ratatui = { version = "0.26", default-features = false }
+serde_json = { version = "1", optional = true, features = ["preserve_order"] }
 unicode-width = "0.1"
 
 [dev-dependencies]
@@ -37,3 +41,8 @@ pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 [[bench]]
 name = "bench"
 harness = false
+required-features = ["serde_json"]
+
+[[example]]
+name = "cargo_metadata"
+required-features = ["serde_json"]

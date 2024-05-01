@@ -4,7 +4,7 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughpu
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
-use tui_tree_widget::{Tree, TreeItem, TreeState};
+use tui_tree_widget::{Selector, Tree, TreeItem, TreeState};
 
 fn example_items() -> Vec<TreeItem<'static, &'static str>> {
     vec![
@@ -67,6 +67,53 @@ fn example_items() -> Vec<TreeItem<'static, &'static str>> {
     ]
 }
 
+fn metadata() -> serde_json::Value {
+    let output = std::process::Command::new("cargo")
+        .arg("metadata")
+        .arg("--format-version=1")
+        .arg("--all-features")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "cargo metadata should be executed successfully"
+    );
+    let stdout = String::from_utf8(output.stdout).expect("Should be able to parse metadata");
+    let metadata: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    metadata
+}
+
+fn open_all(state: &mut TreeState<Selector>, json: &serde_json::Value, selector: &[Selector]) {
+    match json {
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
+        serde_json::Value::Array(array) if array.is_empty() => {}
+        serde_json::Value::Array(array) => {
+            state.open(selector.to_vec());
+            for (index, value) in array.iter().enumerate() {
+                let mut child_selector = selector.to_vec();
+                child_selector.push(Selector::ArrayIndex(index));
+                open_all(state, value, &child_selector);
+            }
+        }
+        serde_json::Value::Object(object) if object.is_empty() => {}
+        serde_json::Value::Object(object) => {
+            state.open(selector.to_vec());
+            for (key, value) in object {
+                let mut child_selector = selector.to_vec();
+                child_selector.push(Selector::ObjectKey(key.clone()));
+                open_all(state, value, &child_selector);
+            }
+        }
+    }
+}
+
+fn key(key: &str) -> Selector {
+    Selector::ObjectKey(key.to_owned())
+}
+
 fn init(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("init");
     group.throughput(Throughput::Elements(1)); // Frames per second
@@ -82,6 +129,13 @@ fn init(criterion: &mut Criterion) {
         bencher.iter(|| {
             let items = example_items();
             black_box(Tree::new(black_box(items))).unwrap();
+        });
+    });
+
+    let metadata = metadata();
+    group.bench_function("metadata", |bencher| {
+        bencher.iter(|| {
+            black_box(Tree::new(tui_tree_widget::json::tree_items(black_box(&metadata))).unwrap());
         });
     });
 
@@ -113,6 +167,50 @@ fn renders(criterion: &mut Criterion) {
         let mut state = TreeState::default();
         state.open(vec!["b"]);
         state.open(vec!["b", "d"]);
+        bencher.iter_batched(
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+
+    let metadata = metadata();
+
+    group.bench_function("metadata/no_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
+        bencher.iter_batched(
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+
+    group.bench_function("metadata/few_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
+        state.open(vec![key("packages")]);
+        state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
+        state.open(vec![key("resolve")]);
+        state.open(vec![key("resolve"), key("nodes")]);
+        state.open(vec![key("resolve"), key("nodes"), Selector::ArrayIndex(0)]);
+        bencher.iter_batched(
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+
+    group.bench_function("metadata/all_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
+        open_all(&mut state, &metadata, &[]);
         bencher.iter_batched(
             || (tree.clone(), Buffer::empty(buffer_size)),
             |(tree, mut buffer)| {
