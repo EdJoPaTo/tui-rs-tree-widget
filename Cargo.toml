@@ -22,6 +22,7 @@ nursery = "warn"
 
 [profile.bench]
 codegen-units = 1
+debug = true
 lto = true
 
 [dependencies]
@@ -33,6 +34,9 @@ unicode-width = "0.1"
 criterion = "0.5"
 crossterm = "0.27"
 ratatui = "0.26"
+
+[target.'cfg(target_family = "unix")'.dev-dependencies]
+pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 
 [[bench]]
 name = "bench"

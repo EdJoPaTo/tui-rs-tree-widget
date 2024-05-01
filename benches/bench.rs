@@ -152,5 +152,19 @@ fn renders(criterion: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, init, renders);
+/// Create flamegraphs with `cargo bench --bench bench -- --profile-time=5`
+fn profiled() -> Criterion {
+    if cfg!(target_family = "unix") {
+        use pprof::criterion::{Output, PProfProfiler};
+        Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+    } else {
+        Criterion::default()
+    }
+}
+
+criterion_group! {
+    name = benches;
+    config = profiled();
+    targets = init, renders
+}
 criterion_main!(benches);
