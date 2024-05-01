@@ -20,7 +20,6 @@ pub mod json;
 mod tree_item;
 mod tree_state;
 
-pub use crate::flatten::Flattened;
 pub use crate::identifier::Selector;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
@@ -194,7 +193,7 @@ where
             return;
         }
 
-        let visible = state.flatten(&self.items);
+        let visible = flatten::flatten(&state.opened, self.items, &[]);
         state.last_biggest_index = visible.len().saturating_sub(1);
         if visible.is_empty() {
             return;
@@ -219,11 +218,7 @@ where
 
         let mut end = start;
         let mut height = 0;
-        for item_height in visible
-            .iter()
-            .skip(start)
-            .map(|flattened| flattened.item.height())
-        {
+        for item_height in visible.iter().skip(start).map(|flattened| flattened.height) {
             if height + item_height > available_height {
                 break;
             }
@@ -233,10 +228,10 @@ where
 
         if let Some(ensure_index_in_view) = ensure_index_in_view {
             while ensure_index_in_view >= end {
-                height += visible[end].item.height();
+                height += visible[end].height;
                 end += 1;
                 while height > available_height {
-                    height = height.saturating_sub(visible[start].item.height());
+                    height = height.saturating_sub(visible[start].height);
                     start += 1;
                 }
             }
@@ -266,11 +261,9 @@ where
         let has_selection = !state.selected.is_empty();
         #[allow(clippy::cast_possible_truncation)]
         for flattened in visible.iter().skip(state.offset).take(end - start) {
-            let Flattened { identifier, item } = flattened;
-
             let x = area.x;
             let y = area.y + current_height;
-            let height = item.height() as u16;
+            let height = flattened.height as u16;
             current_height += height;
 
             let area = Rect {
@@ -280,10 +273,10 @@ where
                 height,
             };
 
-            let item_style = self.style.patch(item.style);
+            let item_style = self.style.patch(flattened.style);
             buf.set_style(area, item_style);
 
-            let is_selected = state.selected == *identifier;
+            let is_selected = state.selected == flattened.identifier;
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
                     self.highlight_symbol
@@ -305,9 +298,9 @@ where
                     indent_width,
                     item_style,
                 );
-                let symbol = if item.children.is_empty() {
+                let symbol = if flattened.has_no_children {
                     self.node_no_children_symbol
-                } else if state.opened.contains(identifier) {
+                } else if state.opened.contains(&flattened.identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
@@ -319,7 +312,7 @@ where
             };
 
             let max_element_width = area.width.saturating_sub(after_depth_x - x);
-            for (j, line) in item.text.lines.iter().enumerate() {
+            for (j, line) in flattened.text.lines.iter().enumerate() {
                 buf.set_line(after_depth_x, y + j as u16, line, max_element_width);
             }
             if is_selected {

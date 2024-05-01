@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use crate::flatten::{flatten, Flattened};
 use crate::tree_item::TreeItem;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`](crate::Tree).
@@ -45,13 +44,10 @@ where
         self.selected.clone()
     }
 
-    /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
+    /// Get the required height to render all the visible (= below open) [`TreeItem`]s with this `TreeState`.
     #[must_use]
-    pub fn flatten<'a>(
-        &self,
-        items: &'a [TreeItem<'a, Identifier>],
-    ) -> Vec<Flattened<'a, Identifier>> {
-        flatten(&self.opened, items)
+    pub fn total_required_height(&self, items: &[TreeItem<'_, Identifier>]) -> usize {
+        crate::flatten::total_required_height(&self.opened, items, &[])
     }
 
     /// Selects the given identifier.
