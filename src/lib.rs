@@ -338,3 +338,21 @@ where
         StatefulWidget::render(self, area, buf, &mut state);
     }
 }
+
+#[test]
+fn does_not_panic_on_render() {
+    fn inner(width: u16, height: u16) {
+        let tree = Tree::new(TreeItem::example()).unwrap();
+        let area = Rect::new(0, 0, width, height);
+        let mut buffer = Buffer::empty(area);
+        Widget::render(tree, area, &mut buffer);
+        // TODO: assert buffer is empty
+    }
+
+    inner(0, 0);
+    inner(10, 0);
+    inner(0, 10);
+
+    // TODO: use dedicated test to ensure the content is correct
+    inner(10, 10);
+}
