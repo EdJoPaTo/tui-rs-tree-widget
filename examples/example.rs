@@ -3,7 +3,6 @@ use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
-
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 struct App<'a> {
