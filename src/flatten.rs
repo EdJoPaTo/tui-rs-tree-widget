@@ -11,6 +11,7 @@ pub struct Flattened<'a, Identifier> {
 }
 
 impl<'a, Identifier> Flattened<'a, Identifier> {
+    /// Zero based depth. Depth 0 means 0 indentation.
     #[must_use]
     pub fn depth(&self) -> usize {
         self.identifier.len() - 1
@@ -48,6 +49,18 @@ where
         }
     }
     result
+}
+
+#[test]
+fn depth_works() {
+    let mut opened = HashSet::new();
+    opened.insert(vec!["b"]);
+    opened.insert(vec!["b", "d"]);
+    let depths = flatten(&opened, &TreeItem::example(), &[])
+        .into_iter()
+        .map(|flattened| flattened.depth())
+        .collect::<Vec<_>>();
+    assert_eq!(depths, [0, 0, 1, 1, 2, 2, 1, 0]);
 }
 
 #[cfg(test)]
