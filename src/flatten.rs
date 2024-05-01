@@ -43,13 +43,16 @@ where
         let mut child_identifier = current.to_vec();
         child_identifier.push(item.identifier.clone());
 
+        let child_result = opened
+            .contains(&child_identifier)
+            .then(|| internal(opened, &item.children, &child_identifier));
+
         result.push(Flattened {
+            identifier: child_identifier,
             item,
-            identifier: child_identifier.clone(),
         });
 
-        if opened.contains(&child_identifier) {
-            let mut child_result = internal(opened, &item.children, &child_identifier);
+        if let Some(mut child_result) = child_result {
             result.append(&mut child_result);
         }
     }
