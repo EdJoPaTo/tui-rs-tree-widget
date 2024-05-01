@@ -9,79 +9,122 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
+struct MyTreeItem<'content> {
+    identifier: String,
+    content: &'content str,
+    children: Vec<Self>,
+}
+
+impl TreeItem for MyTreeItem<'_> {
+    type Identifier = String;
+
+    fn children(&self) -> &[Self] {
+        &self.children
+    }
+
+    fn height(&self) -> usize {
+        // We know that every item will have exactly the height 1
+        1
+    }
+
+    fn identifier(&self) -> &Self::Identifier {
+        &self.identifier
+    }
+
+    fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
+        let line = ratatui::text::Line::raw(self.content);
+        ratatui::widgets::Widget::render(line, area, buffer);
+    }
+}
+
+impl<'content> MyTreeItem<'content> {
+    fn new_leaf(identifier: &str, content: &'content str) -> Self {
+        Self {
+            identifier: identifier.to_owned(),
+            content,
+            children: Vec::new(),
+        }
+    }
+
+    fn new(identifier: &str, content: &'content str, children: Vec<Self>) -> Self {
+        tui_tree_widget::unique_identifiers::children(&children)
+            .expect("all item identifiers are unique");
+        Self {
+            identifier: identifier.to_owned(),
+            content,
+            children,
+        }
+    }
+
+    fn example() -> Vec<Self> {
+        vec![
+            Self::new_leaf("a", "Alfa"),
+            Self::new(
+                "b",
+                "Bravo",
+                vec![
+                    Self::new_leaf("c", "Charlie"),
+                    Self::new(
+                        "d",
+                        "Delta",
+                        vec![Self::new_leaf("e", "Echo"), Self::new_leaf("f", "Foxtrot")],
+                    ),
+                    Self::new_leaf("g", "Golf"),
+                ],
+            ),
+            Self::new_leaf("h", "Hotel"),
+            Self::new(
+                "i",
+                "India",
+                vec![
+                    Self::new_leaf("j", "Juliett"),
+                    Self::new_leaf("k", "Kilo"),
+                    Self::new_leaf("l", "Lima"),
+                    Self::new_leaf("m", "Mike"),
+                    Self::new_leaf("n", "November"),
+                ],
+            ),
+            Self::new_leaf("o", "Oscar"),
+            Self::new(
+                "p",
+                "Papa",
+                vec![
+                    Self::new_leaf("q", "Quebec"),
+                    Self::new_leaf("r", "Romeo"),
+                    Self::new_leaf("s", "Sierra"),
+                    Self::new_leaf("t", "Tango"),
+                    Self::new_leaf("u", "Uniform"),
+                    Self::new(
+                        "v",
+                        "Victor",
+                        vec![
+                            Self::new_leaf("w", "Whiskey"),
+                            Self::new_leaf("x", "Xray"),
+                            Self::new_leaf("y", "Yankee"),
+                        ],
+                    ),
+                ],
+            ),
+            Self::new_leaf("z", "Zulu"),
+        ]
+    }
+}
+
 struct App {
-    state: TreeState<&'static str>,
-    items: Vec<TreeItem<'static, &'static str>>,
+    state: TreeState<String>,
 }
 
 impl App {
     fn new() -> Self {
         Self {
             state: TreeState::default(),
-            items: vec![
-                TreeItem::new_leaf("a", "Alfa"),
-                TreeItem::new(
-                    "b",
-                    "Bravo",
-                    vec![
-                        TreeItem::new_leaf("c", "Charlie"),
-                        TreeItem::new(
-                            "d",
-                            "Delta",
-                            vec![
-                                TreeItem::new_leaf("e", "Echo"),
-                                TreeItem::new_leaf("f", "Foxtrot"),
-                            ],
-                        )
-                        .expect("all item identifiers are unique"),
-                        TreeItem::new_leaf("g", "Golf"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("h", "Hotel"),
-                TreeItem::new(
-                    "i",
-                    "India",
-                    vec![
-                        TreeItem::new_leaf("j", "Juliett"),
-                        TreeItem::new_leaf("k", "Kilo"),
-                        TreeItem::new_leaf("l", "Lima"),
-                        TreeItem::new_leaf("m", "Mike"),
-                        TreeItem::new_leaf("n", "November"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("o", "Oscar"),
-                TreeItem::new(
-                    "p",
-                    "Papa",
-                    vec![
-                        TreeItem::new_leaf("q", "Quebec"),
-                        TreeItem::new_leaf("r", "Romeo"),
-                        TreeItem::new_leaf("s", "Sierra"),
-                        TreeItem::new_leaf("t", "Tango"),
-                        TreeItem::new_leaf("u", "Uniform"),
-                        TreeItem::new(
-                            "v",
-                            "Victor",
-                            vec![
-                                TreeItem::new_leaf("w", "Whiskey"),
-                                TreeItem::new_leaf("x", "Xray"),
-                                TreeItem::new_leaf("y", "Yankee"),
-                            ],
-                        )
-                        .expect("all item identifiers are unique"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("z", "Zulu"),
-            ],
         }
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.size();
-        let widget = Tree::new(self.items.clone())
+        let items = MyTreeItem::example();
+        let widget = Tree::new(items)
             .expect("all item identifiers are unique")
             .block(
                 Block::bordered()

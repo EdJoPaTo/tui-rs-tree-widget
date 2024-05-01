@@ -4,66 +4,62 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughpu
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
-use tui_tree_widget::{Selector, Tree, TreeItem, TreeState};
+use tui_tree_widget::json::JsonTreeItem;
+use tui_tree_widget::{Selector, SimpleTreeItem, Tree, TreeState};
 
-fn example_items() -> Vec<TreeItem<'static, &'static str>> {
+fn example_items() -> Vec<SimpleTreeItem<'static>> {
     vec![
-        TreeItem::new_leaf("a", "Alfa"),
-        TreeItem::new(
-            "b",
+        SimpleTreeItem::new_leaf("Alfa"),
+        SimpleTreeItem::new(
             "Bravo",
             vec![
-                TreeItem::new_leaf("c", "Charlie"),
-                TreeItem::new(
-                    "d",
+                SimpleTreeItem::new_leaf("Charlie"),
+                SimpleTreeItem::new(
                     "Delta",
                     vec![
-                        TreeItem::new_leaf("e", "Echo"),
-                        TreeItem::new_leaf("f", "Foxtrot"),
+                        SimpleTreeItem::new_leaf("Echo"),
+                        SimpleTreeItem::new_leaf("Foxtrot"),
                     ],
                 )
                 .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("g", "Golf"),
+                SimpleTreeItem::new_leaf("Golf"),
             ],
         )
         .expect("all item identifiers are unique"),
-        TreeItem::new_leaf("h", "Hotel"),
-        TreeItem::new(
-            "i",
+        SimpleTreeItem::new_leaf("Hotel"),
+        SimpleTreeItem::new(
             "India",
             vec![
-                TreeItem::new_leaf("j", "Juliett"),
-                TreeItem::new_leaf("k", "Kilo"),
-                TreeItem::new_leaf("l", "Lima"),
-                TreeItem::new_leaf("m", "Mike"),
-                TreeItem::new_leaf("n", "November"),
+                SimpleTreeItem::new_leaf("Juliett"),
+                SimpleTreeItem::new_leaf("Kilo"),
+                SimpleTreeItem::new_leaf("Lima"),
+                SimpleTreeItem::new_leaf("Mike"),
+                SimpleTreeItem::new_leaf("November"),
             ],
         )
         .expect("all item identifiers are unique"),
-        TreeItem::new_leaf("o", "Oscar"),
-        TreeItem::new(
-            "p",
+        SimpleTreeItem::new_leaf("Oscar"),
+        SimpleTreeItem::new(
             "Papa",
             vec![
-                TreeItem::new_leaf("q", "Quebec"),
-                TreeItem::new_leaf("r", "Romeo"),
-                TreeItem::new_leaf("s", "Sierra"),
-                TreeItem::new_leaf("t", "Tango"),
-                TreeItem::new_leaf("u", "Uniform"),
-                TreeItem::new(
-                    "v",
+                SimpleTreeItem::new_leaf("Quebec"),
+                SimpleTreeItem::new_leaf("Romeo"),
+                SimpleTreeItem::new_leaf("Sierra"),
+                SimpleTreeItem::new_leaf("Tango"),
+                SimpleTreeItem::new_leaf("Uniform"),
+                SimpleTreeItem::new(
                     "Victor",
                     vec![
-                        TreeItem::new_leaf("w", "Whiskey"),
-                        TreeItem::new_leaf("x", "Xray"),
-                        TreeItem::new_leaf("y", "Yankee"),
+                        SimpleTreeItem::new_leaf("Whiskey"),
+                        SimpleTreeItem::new_leaf("Xray"),
+                        SimpleTreeItem::new_leaf("Yankee"),
                     ],
                 )
                 .expect("all item identifiers are unique"),
             ],
         )
         .expect("all item identifiers are unique"),
-        TreeItem::new_leaf("z", "Zulu"),
+        SimpleTreeItem::new_leaf("Zulu"),
     ]
 }
 
@@ -120,7 +116,7 @@ fn init(criterion: &mut Criterion) {
 
     group.bench_function("empty", |bencher| {
         bencher.iter(|| {
-            let items: Vec<TreeItem<usize>> = vec![];
+            let items: Vec<SimpleTreeItem> = vec![];
             black_box(Tree::new(black_box(items))).unwrap();
         });
     });
@@ -135,7 +131,7 @@ fn init(criterion: &mut Criterion) {
     let metadata = metadata();
     group.bench_function("metadata", |bencher| {
         bencher.iter(|| {
-            black_box(Tree::new(tui_tree_widget::json::tree_items(black_box(&metadata))).unwrap());
+            black_box(Tree::new(JsonTreeItem::new(black_box(&metadata))).unwrap());
         });
     });
 
@@ -149,7 +145,7 @@ fn renders(criterion: &mut Criterion) {
     let buffer_size = Rect::new(0, 0, 100, 100);
 
     group.bench_function("empty", |bencher| {
-        let items: Vec<TreeItem<usize>> = vec![];
+        let items: Vec<SimpleTreeItem> = vec![];
         let tree = Tree::new(items).unwrap();
         let mut state = TreeState::default();
         bencher.iter_batched(
@@ -179,7 +175,7 @@ fn renders(criterion: &mut Criterion) {
     let metadata = metadata();
 
     group.bench_function("metadata/no_open", |bencher| {
-        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let tree = Tree::new(JsonTreeItem::new(&metadata)).unwrap();
         let mut state = TreeState::default();
         bencher.iter_batched(
             || (tree.clone(), Buffer::empty(buffer_size)),
@@ -191,7 +187,7 @@ fn renders(criterion: &mut Criterion) {
     });
 
     group.bench_function("metadata/few_open", |bencher| {
-        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let tree = Tree::new(JsonTreeItem::new(&metadata)).unwrap();
         let mut state = TreeState::default();
         state.open(vec![key("packages")]);
         state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
@@ -208,7 +204,7 @@ fn renders(criterion: &mut Criterion) {
     });
 
     group.bench_function("metadata/all_open", |bencher| {
-        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let tree = Tree::new(JsonTreeItem::new(&metadata)).unwrap();
         let mut state = TreeState::default();
         open_all(&mut state, &metadata, &[]);
         bencher.iter_batched(

@@ -1,5 +1,7 @@
-pub use self::render::tree_items;
+#![allow(clippy::module_name_repetitions)]
+
+pub use self::json_tree_item::JsonTreeItem;
 pub use self::select::select;
 
-mod render;
+mod json_tree_item;
 mod select;

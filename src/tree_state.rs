@@ -44,12 +44,6 @@ where
         self.selected.clone()
     }
 
-    /// Get the required height to render all the visible (= below open) [`TreeItem`]s with this `TreeState`.
-    #[must_use]
-    pub fn total_required_height(&self, items: &[TreeItem<'_, Identifier>]) -> usize {
-        crate::flatten::total_required_height(&self.opened, items, &[])
-    }
-
     /// Selects the given identifier.
     ///
     /// Returns `true` when the selection changed.
@@ -68,7 +62,7 @@ where
         changed
     }
 
-    /// Open a tree node.
+    /// Open a tree item.
     /// Returns `true` when it was closed and has been opened.
     /// Returns `false` when it was already open.
     pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
@@ -79,17 +73,17 @@ where
         }
     }
 
-    /// Close a tree node.
+    /// Close a tree item.
     /// Returns `true` when it was open and has been closed.
     /// Returns `false` when it was already closed.
     pub fn close(&mut self, identifier: &[Identifier]) -> bool {
         self.opened.remove(identifier)
     }
 
-    /// Toggles a tree node open/close state.
-    /// When it is currently open, then [`close`](Self::close) is called. Otherwise [`open`](Self::open).
+    /// Toggles a tree item open/close state.
+    /// When the item is in opened, it calls [`close`](Self::close). Otherwise it calls [`open`](Self::open).
     ///
-    /// Returns `true` when a node is opened / closed.
+    /// Returns `true` when an item is opened / closed.
     /// As toggle always changes something, this only returns `false` when an empty identifier is given.
     pub fn toggle(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
@@ -101,19 +95,19 @@ where
         }
     }
 
-    /// Toggles the currently selected tree node open/close state.
+    /// Toggles the currently selected tree item open/close state.
     /// See also [`toggle`](Self::toggle)
     ///
-    /// Returns `true` when a node is opened / closed.
+    /// Returns `true` when an item is opened / closed.
     /// As toggle always changes something, this only returns `false` when nothing is selected.
     pub fn toggle_selected(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
         self.toggle(self.selected())
     }
 
-    /// Closes all open nodes.
+    /// Closes all open items.
     ///
-    /// Returns `true` when any node was closed.
+    /// Returns `true` when any item was closed.
     pub fn close_all(&mut self) -> bool {
         if self.opened.is_empty() {
             false
@@ -123,7 +117,7 @@ where
         }
     }
 
-    /// Select the first node.
+    /// Select the first item.
     ///
     /// Returns `true` when the selection changed.
     pub fn select_first(&mut self) -> bool {
@@ -135,7 +129,7 @@ where
         self.select(identifier)
     }
 
-    /// Select the last visible node.
+    /// Select the last visible item.
     ///
     /// Returns `true` when the selection changed.
     pub fn select_last(&mut self) -> bool {
@@ -147,7 +141,7 @@ where
         self.select(new_identifier)
     }
 
-    /// Select the node visible on the given index.
+    /// Select the item visible on the given index.
     ///
     /// Returns `true` when the selection changed.
     ///
@@ -233,7 +227,7 @@ where
     }
 
     /// Handles the down arrow key.
-    /// Moves down in the current depth or into a child node.
+    /// Moves down in the current depth or into a child item.
     ///
     /// Returns `true` when the selection changed.
     pub fn key_down(&mut self) -> bool {
@@ -267,4 +261,13 @@ where
         self.ensure_selected_in_view_on_next_render = true;
         self.open(self.selected())
     }
+}
+
+/// Get the required height to render all the visible (= below open) [`TreeItem`]s with the given [`TreeState`].
+#[must_use]
+pub fn total_required_height<Item>(state: &TreeState<Item::Identifier>, items: &[Item]) -> usize
+where
+    Item: TreeItem,
+{
+    crate::flatten::total_required_height(&state.opened, items, &[])
 }

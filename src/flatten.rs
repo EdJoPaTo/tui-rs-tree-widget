@@ -1,21 +1,19 @@
 use std::collections::HashSet;
 
-use ratatui::text::Text;
-
 use crate::tree_item::TreeItem;
 
 /// A flattened item of all visible [`TreeItem`]s.
 ///
 /// Generated via [`TreeState::flatten`](crate::TreeState::flatten).
-pub struct Flattened<'text, Identifier> {
+pub struct Flattened<'item, Item, Identifier> {
     pub identifier: Vec<Identifier>,
+    pub item: &'item Item,
 
     pub has_no_children: bool,
     pub height: usize,
-    pub text: Text<'text>,
 }
 
-impl<Identifier> Flattened<'_, Identifier> {
+impl<Item, Identifier> Flattened<'_, Item, Identifier> {
     /// Zero based depth. Depth 0 means 0 indentation.
     #[must_use]
     pub fn depth(&self) -> usize {
@@ -27,31 +25,32 @@ impl<Identifier> Flattened<'_, Identifier> {
 ///
 /// `current` starts empty: `&[]`
 #[must_use]
-pub fn flatten<'text, Identifier>(
-    opened: &HashSet<Vec<Identifier>>,
-    items: Vec<TreeItem<'text, Identifier>>,
-    current: &[Identifier],
-) -> Vec<Flattened<'text, Identifier>>
+pub fn flatten<'item, Item>(
+    opened: &HashSet<Vec<Item::Identifier>>,
+    items: &'item [Item],
+    current: &[Item::Identifier],
+) -> Vec<Flattened<'item, Item, Item::Identifier>>
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Item: TreeItem,
 {
     let mut result = Vec::new();
     for item in items {
         let mut child_identifier = current.to_vec();
-        child_identifier.push(item.identifier.clone());
+        child_identifier.push(item.identifier().clone());
 
-        let has_no_children = item.children.is_empty();
+        let children = item.children();
+        let has_no_children = children.is_empty();
 
         let child_result = opened
             .contains(&child_identifier)
-            .then(|| flatten(opened, item.children, &child_identifier));
+            .then(|| flatten(opened, children, &child_identifier));
 
         result.push(Flattened {
             identifier: child_identifier,
+            item,
 
             has_no_children,
-            height: item.text.height(),
-            text: item.text,
+            height: item.height(),
         });
 
         if let Some(mut child_result) = child_result {
@@ -61,26 +60,26 @@ where
     result
 }
 
-/// Height requireed to show all visible/opened items.
+/// Height required to show all visible/opened items.
 ///
 /// `current` starts empty: `&[]`
-pub fn total_required_height<Identifier>(
-    opened: &HashSet<Vec<Identifier>>,
-    items: &[TreeItem<'_, Identifier>],
-    current: &[Identifier],
+pub fn total_required_height<Item>(
+    opened: &HashSet<Vec<Item::Identifier>>,
+    items: &[Item],
+    current: &[Item::Identifier],
 ) -> usize
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Item: TreeItem,
 {
     let mut result: usize = 0;
     for item in items {
         let mut child_identifier = current.to_vec();
-        child_identifier.push(item.identifier.clone());
+        child_identifier.push(item.identifier().clone());
 
-        result = result.saturating_add(item.text.height());
+        result = result.saturating_add(item.height());
 
         if opened.contains(&child_identifier) {
-            let below = total_required_height(opened, &item.children, &child_identifier);
+            let below = total_required_height(opened, item.children(), &child_identifier);
             result = result.saturating_add(below);
         }
     }
@@ -92,7 +91,7 @@ fn depth_works() {
     let mut opened = HashSet::new();
     opened.insert(vec!["b"]);
     opened.insert(vec!["b", "d"]);
-    let depths = flatten(&opened, TreeItem::example(), &[])
+    let depths = flatten(&opened, &crate::SimpleTreeItem::example(), &[])
         .into_iter()
         .map(|flattened| flattened.depth())
         .collect::<Vec<_>>();
@@ -101,7 +100,8 @@ fn depth_works() {
 
 #[cfg(test)]
 fn flatten_works(opened: &HashSet<Vec<&'static str>>, expected: &[&str]) {
-    let result = flatten(opened, TreeItem::example(), &[]);
+    let items = crate::SimpleTreeItem::example();
+    let result = flatten(opened, &items, &[]);
     let actual = result
         .into_iter()
         .map(|flattened| flattened.identifier.into_iter().last().unwrap())
@@ -141,7 +141,7 @@ fn get_opened_all_opened() {
 #[cfg(test)]
 #[track_caller]
 fn required_height_works(opened: &HashSet<Vec<&'static str>>, expected: usize) {
-    let actual = total_required_height(opened, &TreeItem::example(), &[]);
+    let actual = total_required_height(opened, &crate::SimpleTreeItem::example(), &[]);
     assert_eq!(actual, expected);
 }
 

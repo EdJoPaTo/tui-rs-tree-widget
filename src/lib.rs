@@ -5,8 +5,6 @@ Tree widget [`Tree`] is generated with [`TreeItem`]s (which itself can contain [
 The user interaction state (like the current selection) is stored in the [`TreeState`].
 */
 
-use std::collections::HashSet;
-
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
@@ -14,15 +12,20 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget}
 use unicode_width::UnicodeWidthStr;
 
 pub use crate::identifier::Selector;
+pub use crate::prerendered_tree_item::PrerenderedTreeItem;
+pub use crate::simple_tree_item::SimpleTreeItem;
 pub use crate::tree_item::TreeItem;
-pub use crate::tree_state::TreeState;
+pub use crate::tree_state::{total_required_height, TreeState};
 
 mod flatten;
 mod identifier;
 #[cfg(feature = "serde_json")]
 pub mod json;
+mod prerendered_tree_item;
+mod simple_tree_item;
 mod tree_item;
 mod tree_state;
+pub mod unique_identifiers;
 
 /// A `Tree` which can be rendered.
 ///
@@ -32,14 +35,14 @@ mod tree_state;
 /// # Example
 ///
 /// ```
-/// # use tui_tree_widget::{Tree, TreeItem, TreeState};
+/// # use tui_tree_widget::{SimpleTreeItem, Tree, TreeItem, TreeState};
 /// # use ratatui::backend::TestBackend;
 /// # use ratatui::Terminal;
 /// # use ratatui::widgets::Block;
 /// # let mut terminal = Terminal::new(TestBackend::new(32, 32)).unwrap();
 /// let mut state = TreeState::default();
 ///
-/// let item = TreeItem::new_leaf("l", "leaf");
+/// let item = SimpleTreeItem::new_leaf("leaf");
 /// let items = vec![item];
 ///
 /// terminal.draw(|frame| {
@@ -54,48 +57,39 @@ mod tree_state;
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct Tree<'a, Identifier> {
-    items: Vec<TreeItem<'a, Identifier>>,
+pub struct Tree<'settings, Item> {
+    items: Vec<Item>,
 
-    block: Option<Block<'a>>,
-    scrollbar: Option<Scrollbar<'a>>,
+    block: Option<Block<'settings>>,
+    scrollbar: Option<Scrollbar<'settings>>,
     /// Style used as a base style for the widget
     style: Style,
 
     /// Style used to render selected item
     highlight_style: Style,
-    /// Symbol in front of the selected item (Shift all items to the right)
-    highlight_symbol: &'a str,
+    /// Symbol in front of the selected item (Indents all items)
+    highlight_symbol: &'settings str,
 
-    /// Symbol displayed in front of a closed node (As in the children are currently not visible)
-    node_closed_symbol: &'a str,
-    /// Symbol displayed in front of an open node. (As in the children are currently visible)
-    node_open_symbol: &'a str,
-    /// Symbol displayed in front of a node without children.
-    node_no_children_symbol: &'a str,
+    /// Symbol displayed in front of a closed item (As in the children are currently not visible)
+    symbol_closed: &'settings str,
+    /// Symbol displayed in front of an open item. (As in the children are currently visible)
+    symbol_open: &'settings str,
+    /// Symbol displayed in front of a item without children.
+    symbol_no_children: &'settings str,
 }
 
-impl<'a, Identifier> Tree<'a, Identifier>
+impl<'settings, Item> Tree<'settings, Item>
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Item: TreeItem,
 {
     /// Create a new `Tree`.
     ///
     /// # Errors
     ///
     /// Errors when there are duplicate identifiers in the children.
-    pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
-        let identifiers = items
-            .iter()
-            .map(|item| &item.identifier)
-            .collect::<HashSet<_>>();
-        if identifiers.len() != items.len() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "The items contain duplicate identifiers",
-            ));
-        }
-
+    #[track_caller]
+    pub fn new(items: Vec<Item>) -> std::io::Result<Self> {
+        unique_identifiers::tree(&items)?;
         Ok(Self {
             items,
             block: None,
@@ -103,15 +97,15 @@ where
             style: Style::new(),
             highlight_style: Style::new(),
             highlight_symbol: "",
-            node_closed_symbol: "\u{25b6} ", // Arrow to right
-            node_open_symbol: "\u{25bc} ",   // Arrow down
-            node_no_children_symbol: "  ",
+            symbol_closed: "\u{25b6} ", // Arrow to right
+            symbol_open: "\u{25bc} ",   // Arrow down
+            symbol_no_children: "  ",
         })
     }
 
     #[allow(clippy::missing_const_for_fn)]
     #[must_use]
-    pub fn block(mut self, block: Block<'a>) -> Self {
+    pub fn block(mut self, block: Block<'settings>) -> Self {
         self.block = Some(block);
         self
     }
@@ -122,7 +116,7 @@ where
     /// Its there to test and experiment with whats possible with scrolling widgets.
     /// Also see <https://github.com/ratatui-org/ratatui/issues/174>
     #[must_use]
-    pub const fn experimental_scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
+    pub const fn experimental_scrollbar(mut self, scrollbar: Option<Scrollbar<'settings>>) -> Self {
         self.scrollbar = scrollbar;
         self
     }
@@ -140,26 +134,47 @@ where
     }
 
     #[must_use]
-    pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
+    pub const fn highlight_symbol(mut self, highlight_symbol: &'settings str) -> Self {
         self.highlight_symbol = highlight_symbol;
         self
     }
 
+    #[deprecated = "use closed_symbol"]
     #[must_use]
-    pub const fn node_closed_symbol(mut self, symbol: &'a str) -> Self {
-        self.node_closed_symbol = symbol;
+    pub const fn node_closed_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_closed = symbol;
+        self
+    }
+
+    #[deprecated = "use open_symbol"]
+    #[must_use]
+    pub const fn node_open_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_open = symbol;
+        self
+    }
+
+    #[deprecated = "use no_children_symbol"]
+    #[must_use]
+    pub const fn node_no_children_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_no_children = symbol;
         self
     }
 
     #[must_use]
-    pub const fn node_open_symbol(mut self, symbol: &'a str) -> Self {
-        self.node_open_symbol = symbol;
+    pub const fn closed_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_closed = symbol;
         self
     }
 
     #[must_use]
-    pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
-        self.node_no_children_symbol = symbol;
+    pub const fn open_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_open = symbol;
+        self
+    }
+
+    #[must_use]
+    pub const fn no_children_symbol(mut self, symbol: &'settings str) -> Self {
+        self.symbol_no_children = symbol;
         self
     }
 }
@@ -167,16 +182,16 @@ where
 #[test]
 #[should_panic = "duplicate identifiers"]
 fn tree_new_errors_with_duplicate_identifiers() {
-    let item = TreeItem::new_leaf("same", "text");
-    let another = item.clone();
+    let item = SimpleTreeItem::new_leaf("same");
+    let another = SimpleTreeItem::new_leaf("same");
     Tree::new(vec![item, another]).unwrap();
 }
 
-impl<Identifier> StatefulWidget for Tree<'_, Identifier>
+impl<Item> StatefulWidget for Tree<'_, Item>
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Item: TreeItem,
 {
-    type State = TreeState<Identifier>;
+    type State = TreeState<Item::Identifier>;
 
     #[allow(clippy::too_many_lines)]
     fn render(self, full_area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -193,7 +208,7 @@ where
             return;
         }
 
-        let visible = flatten::flatten(&state.opened, self.items, &[]);
+        let visible = flatten::flatten(&state.opened, &self.items, &[]);
         state.last_biggest_index = visible.len().saturating_sub(1);
         if visible.is_empty() {
             return;
@@ -273,9 +288,6 @@ where
                 height,
             };
 
-            let text = &flattened.text;
-            let item_style = text.style;
-
             let is_selected = state.selected == flattened.identifier;
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
@@ -283,7 +295,7 @@ where
                 } else {
                     &blank_symbol
                 };
-                let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, item_style);
+                let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, Style::new());
                 x
             } else {
                 x
@@ -296,18 +308,18 @@ where
                     y,
                     " ".repeat(indent_width),
                     indent_width,
-                    item_style,
+                    Style::new(),
                 );
                 let symbol = if flattened.has_no_children {
-                    self.node_no_children_symbol
+                    self.symbol_no_children
                 } else if state.opened.contains(&flattened.identifier) {
-                    self.node_open_symbol
+                    self.symbol_open
                 } else {
-                    self.node_closed_symbol
+                    self.symbol_closed
                 };
                 let max_width = area.width.saturating_sub(after_indent_x - x);
                 let (x, _) =
-                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, item_style);
+                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, Style::new());
                 x
             };
 
@@ -316,7 +328,7 @@ where
                 width: area.width.saturating_sub(after_depth_x - x),
                 ..area
             };
-            text.render(text_area, buf);
+            flattened.item.render(text_area, buf);
 
             if is_selected {
                 buf.set_style(area, self.highlight_style);
@@ -329,16 +341,6 @@ where
     }
 }
 
-impl<Identifier> Widget for Tree<'_, Identifier>
-where
-    Identifier: Clone + Default + Eq + core::hash::Hash,
-{
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut state = TreeState::default();
-        StatefulWidget::render(self, area, buf, &mut state);
-    }
-}
-
 #[cfg(test)]
 mod render_tests {
     use super::*;
@@ -346,7 +348,7 @@ mod render_tests {
     #[must_use]
     #[track_caller]
     fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
-        let tree = Tree::new(TreeItem::example()).unwrap();
+        let tree = Tree::new(SimpleTreeItem::example()).unwrap();
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
         StatefulWidget::render(tree, area, &mut buffer, state);
@@ -363,13 +365,13 @@ mod render_tests {
 
     #[test]
     fn nothing_open() {
-        let buffer = render(10, 4, &mut TreeState::default());
+        let buffer = render(5, 4, &mut TreeState::default());
         #[rustfmt::skip]
         let expected = Buffer::with_lines([
-            "  Alfa    ",
-            "▶ Bravo   ",
-            "  Hotel   ",
-            "          ",
+            "  a  ",
+            "▶ b  ",
+            "  h  ",
+            "     ",
         ]);
         assert_eq!(buffer, expected);
     }
@@ -378,15 +380,15 @@ mod render_tests {
     fn depth_one() {
         let mut state = TreeState::default();
         state.open(vec!["b"]);
-        let buffer = render(13, 7, &mut state);
+        let buffer = render(10, 7, &mut state);
         let expected = Buffer::with_lines([
-            "  Alfa       ",
-            "▼ Bravo      ",
-            "    Charlie  ",
-            "  ▶ Delta    ",
-            "    Golf     ",
-            "  Hotel      ",
-            "             ",
+            "  a       ",
+            "▼ b       ",
+            "    c     ",
+            "  ▶ d     ",
+            "    g     ",
+            "  h       ",
+            "          ",
         ]);
         assert_eq!(buffer, expected);
     }
@@ -396,17 +398,17 @@ mod render_tests {
         let mut state = TreeState::default();
         state.open(vec!["b"]);
         state.open(vec!["b", "d"]);
-        let buffer = render(15, 9, &mut state);
+        let buffer = render(10, 9, &mut state);
         let expected = Buffer::with_lines([
-            "  Alfa         ",
-            "▼ Bravo        ",
-            "    Charlie    ",
-            "  ▼ Delta      ",
-            "      Echo     ",
-            "      Foxtrot  ",
-            "    Golf       ",
-            "  Hotel        ",
-            "               ",
+            "  a       ",
+            "▼ b       ",
+            "    c     ",
+            "  ▼ d     ",
+            "      e   ",
+            "      f   ",
+            "    g     ",
+            "  h       ",
+            "          ",
         ]);
         assert_eq!(buffer, expected);
     }

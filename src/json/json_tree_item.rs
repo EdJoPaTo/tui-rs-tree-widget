@@ -5,15 +5,115 @@ use ratatui::text::{Line, Span};
 use serde_json::Value;
 
 use crate::identifier::Selector;
-use crate::TreeItem;
 
-/// Create [`TreeItem`]s from a [JSON](Value).
-#[must_use]
-pub fn tree_items(root: &Value) -> Vec<TreeItem<'_, Selector>> {
-    match root {
-        Value::Object(object) => from_object(object),
-        Value::Array(array) => from_array(array),
-        _ => vec![TreeItem::new_leaf(Selector::None, get_value_span(root))],
+#[derive(Debug, Clone)]
+pub struct JsonTreeItem<'json> {
+    key: Selector,
+    value: &'json Value,
+    children: Vec<Self>,
+}
+
+impl<'json> JsonTreeItem<'json> {
+    const fn raw_leaf(key: Selector, value: &'json Value) -> Self {
+        Self {
+            key,
+            value,
+            children: Vec::new(),
+        }
+    }
+
+    const fn raw(identifier: Selector, value: &'json Value, children: Vec<Self>) -> Self {
+        // no need for child identifier uniqueness check as JSON itself already prevents this
+        Self {
+            key: identifier,
+            value,
+            children,
+        }
+    }
+
+    #[must_use]
+    pub fn new(root: &'json Value) -> Vec<Self> {
+        match root {
+            Value::Array(array) => Self::from_array(array),
+            Value::Object(object) => Self::from_object(object),
+            _ => vec![Self::raw_leaf(Selector::None, root)],
+        }
+    }
+
+    #[must_use]
+    fn new_inner(key: Selector, value: &'json Value) -> Self {
+        match value {
+            Value::Object(object) if object.is_empty() => Self::raw_leaf(key, value),
+            Value::Object(object) => Self::raw(key, value, Self::from_object(object)),
+            Value::Array(array) if array.is_empty() => Self::raw_leaf(key, value),
+            Value::Array(array) => Self::raw(key, value, Self::from_array(array)),
+            _ => Self::raw_leaf(key, value),
+        }
+    }
+
+    #[must_use]
+    fn from_object(object: &'json serde_json::Map<String, Value>) -> Vec<Self> {
+        object
+            .iter()
+            .map(|(key, value)| Self::new_inner(Selector::ObjectKey(key.clone()), value))
+            .collect()
+    }
+
+    #[must_use]
+    fn from_array(array: &'json [Value]) -> Vec<Self> {
+        array
+            .iter()
+            .enumerate()
+            .map(|(index, value)| Self::new_inner(Selector::ArrayIndex(index), value))
+            .collect()
+    }
+}
+
+impl crate::tree_item::TreeItem for JsonTreeItem<'_> {
+    type Identifier = Selector;
+
+    fn children(&self) -> &[Self] {
+        &self.children
+    }
+
+    fn height(&self) -> usize {
+        1
+    }
+
+    fn identifier(&self) -> &Self::Identifier {
+        &self.key
+    }
+
+    fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
+        const KEY: Style = Style::new().fg(Color::Blue);
+        const INDEX: Style = Style::new().fg(Color::Cyan);
+
+        const NAME_SEPARATOR: Span = Span {
+            content: Cow::Borrowed(": "),
+            style: Style::new().fg(Color::DarkGray),
+        };
+
+        let value_span = get_value_span(self.value);
+        let spans = match &self.key {
+            Selector::ObjectKey(key) => vec![
+                Span {
+                    content: Cow::Borrowed(key),
+                    style: KEY,
+                },
+                NAME_SEPARATOR,
+                value_span,
+            ],
+            Selector::ArrayIndex(index) => vec![
+                Span {
+                    content: Cow::Owned(index.to_string()),
+                    style: INDEX,
+                },
+                NAME_SEPARATOR,
+                value_span,
+            ],
+            Selector::None => vec![value_span],
+        };
+        ratatui::widgets::Widget::render(Line::from(spans), area, buffer);
     }
 }
 
@@ -63,67 +163,10 @@ fn get_value_span(value: &Value) -> Span {
     }
 }
 
-fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
-    const KEY: Style = Style::new().fg(Color::Blue);
-    const INDEX: Style = Style::new().fg(Color::Cyan);
-
-    const NAME_SEPARATOR: Span = Span {
-        content: Cow::Borrowed(": "),
-        style: Style::new().fg(Color::DarkGray),
-    };
-
-    let value_span = get_value_span(value);
-    let spans = match key {
-        Selector::ObjectKey(ref key) => vec![
-            Span {
-                content: Cow::Owned(key.clone()),
-                style: KEY,
-            },
-            NAME_SEPARATOR,
-            value_span,
-        ],
-        Selector::ArrayIndex(index) => vec![
-            Span {
-                content: Cow::Owned(index.to_string()),
-                style: INDEX,
-            },
-            NAME_SEPARATOR,
-            value_span,
-        ],
-        Selector::None => vec![value_span],
-    };
-    let text = Line::from(spans);
-
-    match value {
-        Value::Array(array) if !array.is_empty() => {
-            TreeItem::new(key, text, from_array(array)).unwrap()
-        }
-        Value::Object(object) if !object.is_empty() => {
-            TreeItem::new(key, text, from_object(object)).unwrap()
-        }
-        _ => TreeItem::new_leaf(key, text),
-    }
-}
-
-fn from_object(object: &serde_json::Map<String, Value>) -> Vec<TreeItem<'_, Selector>> {
-    object
-        .iter()
-        .map(|(key, value)| recurse(Selector::ObjectKey(key.clone()), value))
-        .collect()
-}
-
-fn from_array(array: &[Value]) -> Vec<TreeItem<'_, Selector>> {
-    array
-        .iter()
-        .enumerate()
-        .map(|(index, value)| recurse(Selector::ArrayIndex(index), value))
-        .collect()
-}
-
 #[test]
 fn empty_creates_empty_tree() {
     let json = serde_json::json!({});
-    let tree_items = tree_items(&json);
+    let tree_items = JsonTreeItem::new(&json);
     dbg!(&tree_items);
     assert!(tree_items.is_empty());
 }
@@ -145,7 +188,7 @@ mod render_tests {
     #[track_caller]
     fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Selector>) -> Buffer {
         let json = serde_json::from_str(json).expect("invalid test JSON");
-        let items = tree_items(&json);
+        let items = JsonTreeItem::new(&json);
         let tree = Tree::new(items).unwrap().highlight_symbol(">> ");
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);

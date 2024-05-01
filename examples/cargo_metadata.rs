@@ -9,6 +9,7 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
 use serde_json::Value;
+use tui_tree_widget::json::JsonTreeItem;
 use tui_tree_widget::{Selector, Tree, TreeState};
 
 struct App {
@@ -37,7 +38,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.size();
-        let widget = Tree::new(tui_tree_widget::json::tree_items(&self.metadata))
+        let widget = Tree::new(JsonTreeItem::new(&self.metadata))
             .expect("JSON Should always have unique identifiers")
             .block(
                 Block::bordered()
