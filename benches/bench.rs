@@ -67,6 +67,21 @@ fn example_items() -> Vec<TreeItem<'static, &'static str>> {
     ]
 }
 
+fn metadata() -> serde_json::Value {
+    let output = std::process::Command::new("cargo")
+        .arg("metadata")
+        .arg("--format-version=1")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "cargo metadata should be executed successfully"
+    );
+    let stdout = String::from_utf8(output.stdout).expect("Should be able to parse metadata");
+    let metadata: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    metadata
+}
+
 fn init(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("init");
 
@@ -79,6 +94,13 @@ fn init(criterion: &mut Criterion) {
     group.bench_function("example-items", |bencher| {
         bencher.iter(|| {
             black_box(Tree::new(black_box(example_items())).unwrap());
+        });
+    });
+
+    let metadata = metadata();
+    group.bench_function("metadata", |bencher| {
+        bencher.iter(|| {
+            black_box(Tree::new(tui_tree_widget::json::tree_items(black_box(&metadata))).unwrap());
         });
     });
 
@@ -104,6 +126,19 @@ fn renders(criterion: &mut Criterion) {
 
     let tree = Tree::new(example_items()).unwrap();
     group.bench_function("example-items", |bencher| {
+        bencher.iter_batched(
+            || (tree.clone(), TreeState::default()),
+            |(tree, mut state)| {
+                let mut buffer = Buffer::empty(buffer_size);
+                black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
+            },
+            BatchSize::SmallInput,
+        );
+    });
+
+    let metadata = metadata();
+    let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+    group.bench_function("metadata", |bencher| {
         bencher.iter_batched(
             || (tree.clone(), TreeState::default()),
             |(tree, mut state)| {
