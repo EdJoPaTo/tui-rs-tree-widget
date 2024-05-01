@@ -18,19 +18,10 @@ impl<'a, Identifier> Flattened<'a, Identifier> {
 }
 
 /// Get a flat list of all visible [`TreeItem`]s.
+///
+/// `current` starts empty: `&[]`
 #[must_use]
 pub fn flatten<'a, Identifier>(
-    opened: &HashSet<Vec<Identifier>>,
-    items: &'a [TreeItem<'a, Identifier>],
-) -> Vec<Flattened<'a, Identifier>>
-where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
-{
-    internal(opened, items, &[])
-}
-
-#[must_use]
-fn internal<'a, Identifier>(
     opened: &HashSet<Vec<Identifier>>,
     items: &'a [TreeItem<'a, Identifier>],
     current: &[Identifier],
@@ -43,68 +34,58 @@ where
         let mut child_identifier = current.to_vec();
         child_identifier.push(item.identifier.clone());
 
+        let child_result = opened
+            .contains(&child_identifier)
+            .then(|| flatten(opened, &item.children, &child_identifier));
+
         result.push(Flattened {
+            identifier: child_identifier,
             item,
-            identifier: child_identifier.clone(),
         });
 
-        if opened.contains(&child_identifier) {
-            let mut child_result = internal(opened, &item.children, &child_identifier);
+        if let Some(mut child_result) = child_result {
             result.append(&mut child_result);
         }
     }
     result
 }
 
+#[cfg(test)]
+fn flatten_works(opened: &HashSet<Vec<&'static str>>, expected: &[&str]) {
+    let items = TreeItem::example();
+    let result = flatten(opened, &items, &[]);
+    let actual = result
+        .into_iter()
+        .map(|flattened| flattened.identifier.into_iter().last().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(actual, expected);
+}
+
 #[test]
 fn get_opened_nothing_opened_is_top_level() {
-    let items = TreeItem::example();
     let opened = HashSet::new();
-    let result = flatten(&opened, &items);
-    let result_text = result
-        .into_iter()
-        .map(|flattened| flattened.item.identifier)
-        .collect::<Vec<_>>();
-    assert_eq!(result_text, ["a", "b", "h"]);
+    flatten_works(&opened, &["a", "b", "h"]);
 }
 
 #[test]
 fn get_opened_wrong_opened_is_only_top_level() {
-    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["a"]);
     opened.insert(vec!["b", "d"]);
-    let result = flatten(&opened, &items);
-    let result_text = result
-        .into_iter()
-        .map(|flattened| flattened.item.identifier)
-        .collect::<Vec<_>>();
-    assert_eq!(result_text, ["a", "b", "h"]);
+    flatten_works(&opened, &["a", "b", "h"]);
 }
 
 #[test]
 fn get_opened_one_is_opened() {
-    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["b"]);
-    let result = flatten(&opened, &items);
-    let result_text = result
-        .into_iter()
-        .map(|flattened| flattened.item.identifier)
-        .collect::<Vec<_>>();
-    assert_eq!(result_text, ["a", "b", "c", "d", "g", "h"]);
+    flatten_works(&opened, &["a", "b", "c", "d", "g", "h"]);
 }
 
 #[test]
 fn get_opened_all_opened() {
-    let items = TreeItem::example();
     let mut opened = HashSet::new();
     opened.insert(vec!["b"]);
     opened.insert(vec!["b", "d"]);
-    let result = flatten(&opened, &items);
-    let result_text = result
-        .into_iter()
-        .map(|flattened| flattened.item.identifier)
-        .collect::<Vec<_>>();
-    assert_eq!(result_text, ["a", "b", "c", "d", "e", "f", "g", "h"]);
+    flatten_works(&opened, &["a", "b", "c", "d", "e", "f", "g", "h"]);
 }
