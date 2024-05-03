@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 use serde_json::Value;
 
 use crate::identifier::Selector;
@@ -105,17 +109,64 @@ pub fn tree_items(root: &Value) -> Vec<TreeItem<'_, Selector>> {
 }
 
 fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
+    const KEY: Style = Style::new().fg(Color::Blue);
+    const INDEX: Style = Style::new().fg(Color::Cyan);
+    const SPACER: Style = Style::new().fg(Color::DarkGray);
+    const BOOL: Style = Style::new().fg(Color::Magenta);
+    const NULL: Style = Style::new().fg(Color::DarkGray);
+    const NUMBER: Style = Style::new().fg(Color::LightBlue);
+    const STRING: Style = Style::new().fg(Color::Green);
+
+    let key_span = match &key {
+        Selector::ObjectKey(key) => Span::styled(key.to_string(), KEY),
+        Selector::ArrayIndex(index) => Span::styled(index.to_string(), INDEX),
+        Selector::None => unreachable!(),
+    };
+    let mut text = Line::from(vec![key_span, Span::styled(": ", SPACER)]);
     match value {
+        Value::Object(object) if object.is_empty() => {
+            text.push_span("{}");
+            TreeItem::new_leaf(key, text)
+        }
         Value::Object(object) => {
-            let text = key.to_string();
+            text.push_span("{");
             TreeItem::new(key, text, from_object(object)).unwrap()
         }
+        Value::Array(array) if array.is_empty() => {
+            text.push_span("[]");
+            TreeItem::new_leaf(key, text)
+        }
         Value::Array(array) => {
-            let text = key.to_string();
+            text.push_span("[");
             TreeItem::new(key, text, from_array(array)).unwrap()
         }
-        _ => {
-            let text = format!("{key}: {value}");
+        Value::Null => {
+            text.push_span(Span {
+                content: Cow::Borrowed("null"),
+                style: NULL,
+            });
+            TreeItem::new_leaf(key, text)
+        }
+        Value::Bool(true) => {
+            text.push_span(Span {
+                content: Cow::Borrowed("true"),
+                style: BOOL,
+            });
+            TreeItem::new_leaf(key, text)
+        }
+        Value::Bool(false) => {
+            text.push_span(Span {
+                content: Cow::Borrowed("false"),
+                style: BOOL,
+            });
+            TreeItem::new_leaf(key, text)
+        }
+        Value::Number(number) => {
+            text.push_span(Span::styled(number.to_string(), NUMBER));
+            TreeItem::new_leaf(key, text)
+        }
+        Value::String(string) => {
+            text.push_span(Span::styled(string, STRING));
             TreeItem::new_leaf(key, text)
         }
     }
