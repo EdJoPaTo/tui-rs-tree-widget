@@ -39,7 +39,7 @@ pub struct TreeItem<'a, Identifier> {
     pub(super) identifier: Identifier,
     pub(super) text: Text<'a>,
     pub(super) style: Style,
-    pub(super) children: Vec<TreeItem<'a, Identifier>>,
+    pub(super) children: Vec<Self>,
 }
 
 impl<'a, Identifier> TreeItem<'a, Identifier>
@@ -89,7 +89,7 @@ where
     }
 
     #[must_use]
-    pub fn children(&self) -> &[TreeItem<Identifier>] {
+    pub fn children(&self) -> &[Self] {
         &self.children
     }
 
@@ -145,26 +145,23 @@ impl TreeItem<'static, &'static str> {
     #[cfg(test)]
     pub(crate) fn example() -> Vec<Self> {
         vec![
-            TreeItem::new_leaf("a", "Alfa"),
-            TreeItem::new(
+            Self::new_leaf("a", "Alfa"),
+            Self::new(
                 "b",
                 "Bravo",
                 vec![
-                    TreeItem::new_leaf("c", "Charlie"),
-                    TreeItem::new(
+                    Self::new_leaf("c", "Charlie"),
+                    Self::new(
                         "d",
                         "Delta",
-                        vec![
-                            TreeItem::new_leaf("e", "Echo"),
-                            TreeItem::new_leaf("f", "Foxtrot"),
-                        ],
+                        vec![Self::new_leaf("e", "Echo"), Self::new_leaf("f", "Foxtrot")],
                     )
                     .expect("all item identifiers are unique"),
-                    TreeItem::new_leaf("g", "Golf"),
+                    Self::new_leaf("g", "Golf"),
                 ],
             )
             .expect("all item identifiers are unique"),
-            TreeItem::new_leaf("h", "Hotel"),
+            Self::new_leaf("h", "Hotel"),
         ]
     }
 }
