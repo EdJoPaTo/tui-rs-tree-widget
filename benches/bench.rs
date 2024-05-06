@@ -153,13 +153,14 @@ fn renders(criterion: &mut Criterion) {
 }
 
 /// Create flamegraphs with `cargo bench --bench bench -- --profile-time=5`
+#[cfg(unix)]
 fn profiled() -> Criterion {
-    if cfg!(target_family = "unix") {
-        use pprof::criterion::{Output, PProfProfiler};
-        Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
-    } else {
-        Criterion::default()
-    }
+    use pprof::criterion::{Output, PProfProfiler};
+    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+}
+#[cfg(not(unix))]
+fn profiled() -> Criterion {
+    Criterion::default()
 }
 
 criterion_group! {
