@@ -276,8 +276,8 @@ where
                 height,
             };
 
-            let item_style = self.style.patch(item.style);
-            buf.set_style(area, item_style);
+            let text = &item.text;
+            let item_style = text.style;
 
             let is_selected = state.selected == *identifier;
             let after_highlight_symbol_x = if has_selection {
@@ -314,10 +314,13 @@ where
                 x
             };
 
-            let max_element_width = area.width.saturating_sub(after_depth_x - x);
-            for (j, line) in item.text.lines.iter().enumerate() {
-                buf.set_line(after_depth_x, y + j as u16, line, max_element_width);
-            }
+            let text_area = Rect {
+                x: after_depth_x,
+                width: area.width.saturating_sub(after_depth_x - x),
+                ..area
+            };
+            text.render(text_area, buf);
+
             if is_selected {
                 buf.set_style(area, self.highlight_style);
             }
