@@ -40,18 +40,57 @@ jobs:
       RUSTFLAGS: --deny warnings
     steps:
       - name: Setup Rust
+        id: rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
       - uses: actions/checkout@v4
+      - run: cargo fetch
       - uses: actions/cache@v4
         with:
-          key: clippy-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          key: clippy-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
           path: target/
+      - run: cargo clippy --offline --all-features --all-targets
+      - run: cargo doc --offline --all-features --no-deps
+
+  features:
+    name: Features ${{ matrix.toolchain }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable
+          - beta
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - name: Setup Rust
+        id: rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+
+      - uses: actions/checkout@v4
       - run: cargo fetch
-      - run: cargo clippy --offline --all-targets
-      - run: cargo doc --offline --no-deps
+      - uses: actions/cache@v4
+        with:
+          key: features-${{ matrix.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
+          path: target/
+
+      - name: Check all targets
+        run: cargo hack --keep-going --feature-powerset check --all-targets --offline
+
+      - name: Check without dev dependencies
+        run: cargo hack --keep-going --feature-powerset --no-dev-deps check --offline
 
   test:
     name: Test ${{ matrix.toolchain }} ${{ matrix.os }}
@@ -70,17 +109,18 @@ jobs:
           - windows-latest
     steps:
       - name: Setup Rust
+        id: rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
       - uses: actions/checkout@v4
+      - run: cargo fetch
       - uses: actions/cache@v4
         with:
-          key: test-${{ matrix.toolchain }}-${{ matrix.os }}-${{ hashFiles('**/Cargo.lock') }}
+          key: test-${{ matrix.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
           path: target/
-      - run: cargo fetch
-      - run: cargo build --offline --all-targets
-      - run: cargo test --offline
+      - run: cargo build --offline --all-features --all-targets
+      - run: cargo test --offline --all-features
 
   release:
     name: Release ${{ matrix.triple }}
@@ -111,6 +151,7 @@ jobs:
             os: windows-latest
     steps:
       - name: Setup Rust
+        id: rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -123,12 +164,11 @@ jobs:
           tool: cross
 
       - uses: actions/checkout@v4
-
+      - run: cargo fetch
       - uses: actions/cache@v4
         with:
-          key: release-${{ matrix.triple }}-${{ hashFiles('**/Cargo.lock') }}
+          key: release-${{ matrix.triple }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
           path: target/
-      - run: cargo fetch
 
       - name: Build
-        run: ${{ runner.os == 'Linux' && 'cross' || 'cargo' }} build --release --offline --target ${{ matrix.triple }}
+        run: ${{ runner.os == 'Linux' && 'cross' || 'cargo' }} build --release --offline --all-features --target ${{ matrix.triple }}
