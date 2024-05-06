@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use ratatui::style::Style;
 use ratatui::text::Text;
 
 use crate::tree_item::TreeItem;
@@ -14,7 +13,6 @@ pub struct Flattened<'a, Identifier> {
     pub has_no_children: bool,
     pub height: usize,
     pub text: Text<'a>,
-    pub style: Style,
 }
 
 impl<'a, Identifier> Flattened<'a, Identifier> {
@@ -53,7 +51,6 @@ where
 
             has_no_children,
             height: item.text.height(),
-            style: item.style,
             text: item.text,
         });
 

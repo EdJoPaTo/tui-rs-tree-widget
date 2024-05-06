@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use ratatui::style::Style;
 use ratatui::text::Text;
 
 /// One item inside a [`Tree`](crate::Tree).
@@ -38,7 +37,6 @@ use ratatui::text::Text;
 pub struct TreeItem<'a, Identifier> {
     pub(super) identifier: Identifier,
     pub(super) text: Text<'a>,
-    pub(super) style: Style,
     pub(super) children: Vec<Self>,
 }
 
@@ -55,7 +53,6 @@ where
         Self {
             identifier,
             text: text.into(),
-            style: Style::new(),
             children: Vec::new(),
         }
     }
@@ -83,7 +80,6 @@ where
         Ok(Self {
             identifier,
             text: text.into(),
-            style: Style::new(),
             children,
         })
     }
@@ -110,12 +106,6 @@ where
     #[must_use]
     pub fn height(&self) -> usize {
         self.text.height()
-    }
-
-    #[must_use]
-    pub const fn style(mut self, style: Style) -> Self {
-        self.style = style;
-        self
     }
 
     /// Add a child to the `TreeItem`.
