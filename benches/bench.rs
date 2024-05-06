@@ -1,6 +1,6 @@
 use std::hint::black_box;
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
@@ -84,6 +84,7 @@ fn metadata() -> serde_json::Value {
 
 fn init(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("init");
+    group.throughput(Throughput::Elements(1)); // Frames per second
 
     group.bench_function("empty", |bencher| {
         bencher.iter(|| {
@@ -109,6 +110,7 @@ fn init(criterion: &mut Criterion) {
 
 fn renders(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("render");
+    group.throughput(Throughput::Elements(1)); // Frames per second
 
     let buffer_size = Rect::new(0, 0, 100, 50);
 
