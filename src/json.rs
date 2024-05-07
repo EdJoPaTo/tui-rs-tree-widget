@@ -158,7 +158,7 @@ fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
     const KEY: Style = Style::new().fg(Color::Blue);
     const INDEX: Style = Style::new().fg(Color::Cyan);
 
-    const SPACER_SPAN: Span = Span {
+    const NAME_SEPARATOR: Span = Span {
         content: Cow::Borrowed(": "),
         style: Style::new().fg(Color::DarkGray),
     };
@@ -170,7 +170,7 @@ fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
                 content: Cow::Owned(key.clone()),
                 style: KEY,
             },
-            SPACER_SPAN,
+            NAME_SEPARATOR,
             value_span,
         ],
         Selector::ArrayIndex(index) => vec![
@@ -178,7 +178,7 @@ fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
                 content: Cow::Owned(index.to_string()),
                 style: INDEX,
             },
-            SPACER_SPAN,
+            NAME_SEPARATOR,
             value_span,
         ],
         Selector::None => vec![value_span],
