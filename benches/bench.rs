@@ -71,6 +71,7 @@ fn metadata() -> serde_json::Value {
     let output = std::process::Command::new("cargo")
         .arg("metadata")
         .arg("--format-version=1")
+        .arg("--all-features")
         .output()
         .unwrap();
     assert!(
