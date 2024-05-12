@@ -1,21 +1,13 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use serde_json::Value;
 
+use super::select;
 use crate::identifier::Selector;
-use crate::TreeItem;
-
-/// Create [`TreeItem`]s from a [JSON](Value).
-#[must_use]
-pub fn tree_items(root: &Value) -> Vec<TreeItem<'_, Selector>> {
-    match root {
-        Value::Object(object) => from_object(object),
-        Value::Array(array) => from_array(array),
-        _ => vec![TreeItem::new_leaf(Selector::None, get_value_span(root))],
-    }
-}
+use crate::{Node, TreeData};
 
 fn get_value_span(value: &Value) -> Span {
     const BOOL: Style = Style::new().fg(Color::Magenta);
@@ -63,69 +55,219 @@ fn get_value_span(value: &Value) -> Span {
     }
 }
 
-fn recurse(key: Selector, value: &Value) -> TreeItem<Selector> {
-    const KEY: Style = Style::new().fg(Color::Blue);
-    const INDEX: Style = Style::new().fg(Color::Cyan);
+impl TreeData for Value {
+    type Identifier = Selector;
 
-    const NAME_SEPARATOR: Span = Span {
-        content: Cow::Borrowed(": "),
-        style: Style::new().fg(Color::DarkGray),
-    };
-
-    let value_span = get_value_span(value);
-    let spans = match key {
-        Selector::ObjectKey(ref key) => vec![
-            Span {
-                content: Cow::Owned(key.clone()),
-                style: KEY,
-            },
-            NAME_SEPARATOR,
-            value_span,
-        ],
-        Selector::ArrayIndex(index) => vec![
-            Span {
-                content: Cow::Owned(index.to_string()),
-                style: INDEX,
-            },
-            NAME_SEPARATOR,
-            value_span,
-        ],
-        Selector::None => vec![value_span],
-    };
-    let text = Line::from(spans);
-
-    match value {
-        Value::Array(array) if !array.is_empty() => {
-            TreeItem::new(key, text, from_array(array)).unwrap()
+    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>> {
+        match self {
+            Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => vec![Node {
+                identifier: vec![Selector::None],
+                has_children: false,
+                height: 1,
+            }],
+            Self::Array(array) => flatten_array(open, array, &[]),
+            Self::Object(object) => flatten_object(open, object, &[]),
         }
-        Value::Object(object) if !object.is_empty() => {
-            TreeItem::new(key, text, from_object(object)).unwrap()
-        }
-        _ => TreeItem::new_leaf(key, text),
+    }
+
+    fn render(
+        &self,
+        identifier: &[Self::Identifier],
+        area: ratatui::layout::Rect,
+        buffer: &mut ratatui::buffer::Buffer,
+    ) {
+        const KEY: Style = Style::new().fg(Color::Blue);
+        const INDEX: Style = Style::new().fg(Color::Cyan);
+
+        const NAME_SEPARATOR: Span = Span {
+            content: Cow::Borrowed(": "),
+            style: Style::new().fg(Color::DarkGray),
+        };
+
+        let Some(key) = identifier.last() else {
+            return;
+        };
+        let Some(value) = select(self, identifier) else {
+            return;
+        };
+
+        let value_span = get_value_span(value);
+        let spans = match key {
+            Selector::ObjectKey(ref key) => vec![
+                Span {
+                    content: Cow::Owned(key.clone()),
+                    style: KEY,
+                },
+                NAME_SEPARATOR,
+                value_span,
+            ],
+            Selector::ArrayIndex(index) => vec![
+                Span {
+                    content: Cow::Owned(index.to_string()),
+                    style: INDEX,
+                },
+                NAME_SEPARATOR,
+                value_span,
+            ],
+            Selector::None => vec![value_span],
+        };
+        let text = Line::from(spans);
+        ratatui::widgets::Widget::render(&text, area, buffer);
     }
 }
 
-fn from_object(object: &serde_json::Map<String, Value>) -> Vec<TreeItem<'_, Selector>> {
+fn flatten_inner(
+    json: &Value,
+    open: &HashSet<Vec<Selector>>,
+    identifier: Vec<Selector>,
+) -> Vec<Node<Selector>> {
+    match json {
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
+            identifier,
+            has_children: false,
+            height: 1,
+        }],
+        Value::Array(array) => {
+            let mut result = Vec::new();
+            let children = open
+                .contains(&identifier)
+                .then(|| flatten_array(open, array, &identifier));
+            result.push(Node {
+                identifier,
+                has_children: !array.is_empty(),
+                height: 1,
+            });
+            if let Some(mut children) = children {
+                result.append(&mut children);
+            }
+            result
+        }
+        Value::Object(object) => {
+            let mut result = Vec::new();
+            let children = open
+                .contains(&identifier)
+                .then(|| flatten_object(open, object, &identifier));
+            result.push(Node {
+                identifier,
+                has_children: !object.is_empty(),
+                height: 1,
+            });
+            if let Some(mut children) = children {
+                result.append(&mut children);
+            }
+            result
+        }
+    }
+}
+
+fn flatten_object(
+    open: &HashSet<Vec<Selector>>,
+    object: &serde_json::Map<String, Value>,
+    identifier: &[Selector],
+) -> Vec<Node<Selector>> {
     object
         .iter()
-        .map(|(key, value)| recurse(Selector::ObjectKey(key.clone()), value))
+        .flat_map(|(key, value)| {
+            let mut identifier = identifier.to_vec();
+            identifier.push(Selector::ObjectKey(key.clone()));
+            flatten_inner(value, open, identifier)
+        })
         .collect()
 }
 
-fn from_array(array: &[Value]) -> Vec<TreeItem<'_, Selector>> {
+fn flatten_array(
+    open: &HashSet<Vec<Selector>>,
+    array: &[Value],
+    identifier: &[Selector],
+) -> Vec<Node<Selector>> {
     array
         .iter()
         .enumerate()
-        .map(|(index, value)| recurse(Selector::ArrayIndex(index), value))
+        .flat_map(|(index, value)| {
+            let mut identifier = identifier.to_vec();
+            identifier.push(Selector::ArrayIndex(index));
+            flatten_inner(value, open, identifier)
+        })
         .collect()
 }
 
-#[test]
-fn empty_creates_empty_tree() {
-    let json = serde_json::json!({});
-    let tree_items = tree_items(&json);
-    dbg!(&tree_items);
-    assert!(tree_items.is_empty());
+#[cfg(test)]
+fn key(key: &str) -> Selector {
+    Selector::ObjectKey(key.to_owned())
+}
+
+#[cfg(test)]
+mod tree_data_tests {
+    use super::*;
+
+    const fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Selector> {
+        Node {
+            identifier,
+            has_children,
+            height: 1,
+        }
+    }
+
+    #[track_caller]
+    fn case(input: &str) -> Vec<Node<Selector>> {
+        let mut open = HashSet::new();
+        open.insert(vec![key("foo")]);
+        open.insert(vec![key("foo"), key("bar")]);
+
+        let json: Value = serde_json::from_str(input).expect("invalid JSON string");
+        json.flatten(&open)
+    }
+
+    #[test]
+    fn empty_array_has_no_nodes() {
+        assert_eq!(case("[]"), []);
+    }
+
+    #[test]
+    fn empty_object_has_no_nodes() {
+        assert_eq!(case("{}"), []);
+    }
+
+    #[test]
+    fn number_has_single_node() {
+        assert_eq!(case("42"), [node(vec![Selector::None], false)]);
+    }
+
+    #[test]
+    fn root_array_has_multiple_nodes() {
+        assert_eq!(
+            case("[13, 37]"),
+            [
+                node(vec![Selector::ArrayIndex(0)], false),
+                node(vec![Selector::ArrayIndex(1)], false),
+            ]
+        );
+    }
+
+    #[test]
+    fn root_object_has_multiple_nodes() {
+        assert_eq!(
+            case(r#"{"foo": "bar", "something": true}"#),
+            [
+                node(vec![key("foo")], false),
+                node(vec![key("something")], false),
+            ]
+        );
+    }
+
+    #[test]
+    fn deep_example() {
+        assert_eq!(
+            case(r#"{"foo": {"bar": [13, 37]}, "something": [42]}"#),
+            [
+                node(vec![key("foo")], true),             // open
+                node(vec![key("foo"), key("bar")], true), // open
+                node(vec![key("foo"), key("bar"), Selector::ArrayIndex(0)], false),
+                node(vec![key("foo"), key("bar"), Selector::ArrayIndex(1)], false),
+                node(vec![key("something")], true),
+            ]
+        );
+    }
 }
 
 #[cfg(test)]
@@ -136,17 +278,12 @@ mod render_tests {
     use super::*;
     use crate::{Tree, TreeState};
 
-    fn key(key: &str) -> Selector {
-        Selector::ObjectKey(key.to_owned())
-    }
-
     /// Strips colors after render
     #[must_use]
     #[track_caller]
     fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Selector>) -> Buffer {
-        let json = serde_json::from_str(json).expect("invalid test JSON");
-        let items = tree_items(&json);
-        let tree = Tree::new(items).unwrap().highlight_symbol(">> ");
+        let json: Value = serde_json::from_str(json).expect("invalid test JSON");
+        let tree = Tree::new(&json).highlight_symbol(">> ");
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
         ratatui::widgets::StatefulWidget::render(tree, area, &mut buffer, state);

@@ -37,8 +37,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.size();
-        let widget = Tree::new(tui_tree_widget::json::tree_items(&self.metadata))
-            .expect("JSON Should always have unique identifiers")
+        let widget = Tree::new(&self.metadata)
             .block(
                 Block::bordered()
                     .title("cargo metadata (run with --release for best results)")

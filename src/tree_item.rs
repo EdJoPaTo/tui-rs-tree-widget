@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use ratatui::text::Text;
 
+use crate::{Node, TreeData};
+
 /// One item inside a [`Tree`](crate::Tree).
 ///
 /// Can have zero or more `children`.
@@ -171,4 +173,82 @@ fn tree_item_add_child_errors_with_duplicate_identifiers() {
     let another = item.clone();
     let mut root = TreeItem::new("root", "Root", vec![item]).unwrap();
     root.add_child(another).unwrap();
+}
+
+fn get_item_direct<'root, 'text, Identifier>(
+    root: &'root [TreeItem<'text, Identifier>],
+    identifier: &Identifier,
+) -> Option<&'root TreeItem<'text, Identifier>>
+where
+    Identifier: PartialEq,
+{
+    root.iter().find(|item| &item.identifier == identifier)
+}
+
+fn get_item<'root, 'text, Identifier>(
+    root: &'root [TreeItem<'text, Identifier>],
+    identifier: &[Identifier],
+) -> Option<&'root TreeItem<'text, Identifier>>
+where
+    Identifier: PartialEq,
+{
+    let mut identifier = identifier.iter();
+    let mut current = get_item_direct(root, identifier.next()?)?;
+    for identifier in identifier {
+        current = get_item_direct(&current.children, identifier)?;
+    }
+    Some(current)
+}
+
+impl<'text, Identifier> TreeData for Vec<TreeItem<'text, Identifier>>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    type Identifier = Identifier;
+
+    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>> {
+        flatten_inner(open, self, &[])
+    }
+
+    fn render(
+        &self,
+        identifier: &[Self::Identifier],
+        area: ratatui::layout::Rect,
+        buffer: &mut ratatui::buffer::Buffer,
+    ) {
+        let Some(item) = get_item(self, identifier) else {
+            return;
+        };
+        ratatui::widgets::Widget::render(&item.text, area, buffer);
+    }
+}
+
+fn flatten_inner<Identifier>(
+    open: &HashSet<Vec<Identifier>>,
+    items: &[TreeItem<'_, Identifier>],
+    current: &[Identifier],
+) -> Vec<Node<Identifier>>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    let mut result = Vec::new();
+    for item in items {
+        let mut child_identifier = current.to_vec();
+        child_identifier.push(item.identifier.clone());
+
+        let child_result = open
+            .contains(&child_identifier)
+            .then(|| flatten_inner(open, &item.children, &child_identifier));
+
+        result.push(Node {
+            identifier: child_identifier,
+            has_children: !item.children.is_empty(),
+            height: item.text.height(),
+        });
+
+        if let Some(mut child_result) = child_result {
+            result.append(&mut child_result);
+        }
+    }
+    result
 }
