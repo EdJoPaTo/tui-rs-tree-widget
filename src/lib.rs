@@ -13,16 +13,16 @@ use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
+pub use crate::identifier::Selector;
+pub use crate::tree_item::TreeItem;
+pub use crate::tree_state::TreeState;
+
 mod flatten;
 mod identifier;
 #[cfg(feature = "serde_json")]
 pub mod json;
 mod tree_item;
 mod tree_state;
-
-pub use crate::identifier::Selector;
-pub use crate::tree_item::TreeItem;
-pub use crate::tree_state::TreeState;
 
 /// A `Tree` which can be rendered.
 ///
