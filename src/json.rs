@@ -8,7 +8,7 @@ use crate::identifier::Selector;
 use crate::TreeItem;
 
 /// Select one layer into `root` (depth == 1).
-fn select_one<'v>(root: &'v Value, selector: &Selector) -> Option<&'v Value> {
+fn select_one<'value>(root: &'value Value, selector: &Selector) -> Option<&'value Value> {
     match (root, selector) {
         (Value::Object(object), Selector::ObjectKey(key)) => object.get(key),
         (Value::Array(array), Selector::ArrayIndex(index)) => array.get(*index),
@@ -18,7 +18,7 @@ fn select_one<'v>(root: &'v Value, selector: &Selector) -> Option<&'v Value> {
 
 /// Select a part of the input [JSON](Value).
 #[must_use]
-pub fn select<'v>(root: &'v Value, selector: &[Selector]) -> Option<&'v Value> {
+pub fn select<'value>(root: &'value Value, selector: &[Selector]) -> Option<&'value Value> {
     let mut current = root;
     for select in selector {
         current = select_one(current, select)?;

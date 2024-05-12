@@ -34,13 +34,13 @@ use ratatui::text::Text;
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct TreeItem<'a, Identifier> {
+pub struct TreeItem<'text, Identifier> {
     pub(super) identifier: Identifier,
-    pub(super) text: Text<'a>,
+    pub(super) text: Text<'text>,
     pub(super) children: Vec<Self>,
 }
 
-impl<'a, Identifier> TreeItem<'a, Identifier>
+impl<'text, Identifier> TreeItem<'text, Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
@@ -48,7 +48,7 @@ where
     #[must_use]
     pub fn new_leaf<T>(identifier: Identifier, text: T) -> Self
     where
-        T: Into<Text<'a>>,
+        T: Into<Text<'text>>,
     {
         Self {
             identifier,
@@ -64,7 +64,7 @@ where
     /// Errors when there are duplicate identifiers in the children.
     pub fn new<T>(identifier: Identifier, text: T, children: Vec<Self>) -> std::io::Result<Self>
     where
-        T: Into<Text<'a>>,
+        T: Into<Text<'text>>,
     {
         let identifiers = children
             .iter()
