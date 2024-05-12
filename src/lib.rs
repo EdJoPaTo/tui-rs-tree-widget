@@ -169,7 +169,7 @@ fn tree_new_errors_with_duplicate_identifiers() {
     Tree::new(vec![item, another]).unwrap();
 }
 
-impl<'a, Identifier> StatefulWidget for Tree<'a, Identifier>
+impl<Identifier> StatefulWidget for Tree<'_, Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
@@ -332,7 +332,7 @@ where
     }
 }
 
-impl<'a, Identifier> Widget for Tree<'a, Identifier>
+impl<Identifier> Widget for Tree<'_, Identifier>
 where
     Identifier: Clone + Default + Eq + core::hash::Hash,
 {

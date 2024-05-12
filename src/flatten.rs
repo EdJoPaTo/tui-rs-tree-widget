@@ -5,12 +5,12 @@ use crate::tree_item::TreeItem;
 /// A flattened item of all visible [`TreeItem`]s.
 ///
 /// Generated via [`TreeState::flatten`](crate::TreeState::flatten).
-pub struct Flattened<'a, Identifier> {
+pub struct Flattened<'text, Identifier> {
     pub identifier: Vec<Identifier>,
-    pub item: &'a TreeItem<'a, Identifier>,
+    pub item: &'text TreeItem<'text, Identifier>,
 }
 
-impl<'a, Identifier> Flattened<'a, Identifier> {
+impl<Identifier> Flattened<'_, Identifier> {
     /// Zero based depth. Depth 0 means 0 indentation.
     #[must_use]
     pub fn depth(&self) -> usize {
@@ -22,11 +22,11 @@ impl<'a, Identifier> Flattened<'a, Identifier> {
 ///
 /// `current` starts empty: `&[]`
 #[must_use]
-pub fn flatten<'a, Identifier>(
+pub fn flatten<'text, Identifier>(
     opened: &HashSet<Vec<Identifier>>,
-    items: &'a [TreeItem<'a, Identifier>],
+    items: &'text [TreeItem<'text, Identifier>],
     current: &[Identifier],
-) -> Vec<Flattened<'a, Identifier>>
+) -> Vec<Flattened<'text, Identifier>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
