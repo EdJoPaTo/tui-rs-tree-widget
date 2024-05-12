@@ -73,8 +73,8 @@ where
     }
 
     /// Open a tree node.
-    /// Returns `true` if the node was closed and has been opened.
-    /// Returns `false` if the node was already open.
+    /// Returns `true` when it was closed and has been opened.
+    /// Returns `false` when it was already open.
     pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
@@ -84,14 +84,14 @@ where
     }
 
     /// Close a tree node.
-    /// Returns `true` if the node was open and has been closed.
-    /// Returns `false` if the node was already closed.
+    /// Returns `true` when it was open and has been closed.
+    /// Returns `false` when it was already closed.
     pub fn close(&mut self, identifier: &[Identifier]) -> bool {
         self.opened.remove(identifier)
     }
 
-    /// Toggles a tree node.
-    /// If the node is in opened then it calls [`close`](Self::close). Otherwise it calls [`open`](Self::open).
+    /// Toggles a tree node open/close state.
+    /// When it is currently open, then [`close`](Self::close) is called. Otherwise [`open`](Self::open).
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when an empty identifier is given.
@@ -105,7 +105,7 @@ where
         }
     }
 
-    /// Toggles the currently selected tree node.
+    /// Toggles the currently selected tree node open/close state.
     /// See also [`toggle`](Self::toggle)
     ///
     /// Returns `true` when a node is opened / closed.
@@ -265,8 +265,8 @@ where
     /// Handles the right arrow key.
     /// Opens the currently selected.
     ///
-    /// Returns `true` if the node was closed and has been opened.
-    /// Returns `false` if the node was already open.
+    /// Returns `true` when it was closed and has been opened.
+    /// Returns `false` when it was already open.
     pub fn key_right(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
         self.open(self.selected())
