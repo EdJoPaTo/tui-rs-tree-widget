@@ -4,7 +4,7 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughpu
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
-use tui_tree_widget::{Tree, TreeItem, TreeState};
+use tui_tree_widget::{Selector, Tree, TreeItem, TreeState};
 
 fn example_items() -> Vec<TreeItem<'static, &'static str>> {
     vec![
@@ -83,6 +83,10 @@ fn metadata() -> serde_json::Value {
     metadata
 }
 
+fn key(key: &str) -> Selector {
+    Selector::ObjectKey(key.to_owned())
+}
+
 fn init(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("init");
     group.throughput(Throughput::Elements(1)); // Frames per second
@@ -113,7 +117,7 @@ fn renders(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("render");
     group.throughput(Throughput::Elements(1)); // Frames per second
 
-    let buffer_size = Rect::new(0, 0, 100, 50);
+    let buffer_size = Rect::new(0, 0, 100, 100);
 
     let tree = Tree::new(vec![]).unwrap();
     group.bench_function("empty", |bencher| {
@@ -130,7 +134,12 @@ fn renders(criterion: &mut Criterion) {
     let tree = Tree::new(example_items()).unwrap();
     group.bench_function("example-items", |bencher| {
         bencher.iter_batched(
-            || (tree.clone(), TreeState::default()),
+            || {
+                let mut state = TreeState::default();
+                state.open(vec!["b"]);
+                state.open(vec!["b", "d"]);
+                (tree.clone(), state)
+            },
             |(tree, mut state)| {
                 let mut buffer = Buffer::empty(buffer_size);
                 black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
@@ -143,7 +152,15 @@ fn renders(criterion: &mut Criterion) {
     let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
     group.bench_function("metadata", |bencher| {
         bencher.iter_batched(
-            || (tree.clone(), TreeState::default()),
+            || {
+                let mut state = TreeState::default();
+                state.open(vec![key("packages")]);
+                state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
+                state.open(vec![key("resolve")]);
+                state.open(vec![key("resolve"), key("nodes")]);
+                state.open(vec![key("resolve"), key("nodes"), Selector::ArrayIndex(0)]);
+                (tree.clone(), state)
+            },
             |(tree, mut state)| {
                 let mut buffer = Buffer::empty(buffer_size);
                 black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
