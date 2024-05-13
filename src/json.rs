@@ -12,6 +12,9 @@ fn select_one<'value>(root: &'value Value, selector: &Selector) -> Option<&'valu
     match (root, selector) {
         (Value::Object(object), Selector::ObjectKey(key)) => object.get(key),
         (Value::Array(array), Selector::ArrayIndex(index)) => array.get(*index),
+        (Value::Bool(_) | Value::Null | Value::Number(_) | Value::String(_), Selector::None) => {
+            Some(root)
+        }
         _ => None,
     }
 }
