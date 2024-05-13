@@ -218,3 +218,107 @@ fn empty_creates_empty_tree() {
     dbg!(&tree_items);
     assert!(tree_items.is_empty());
 }
+
+#[cfg(test)]
+mod render_tests {
+    use ratatui::buffer::Buffer;
+    use ratatui::layout::Rect;
+
+    use super::*;
+    use crate::{Tree, TreeState};
+
+    fn key(key: &str) -> Selector {
+        Selector::ObjectKey(key.to_owned())
+    }
+
+    /// Strips colors after render
+    #[must_use]
+    #[track_caller]
+    fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Selector>) -> Buffer {
+        let json = serde_json::from_str(json).expect("invalid test JSON");
+        let items = tree_items(&json);
+        let tree = Tree::new(items).unwrap().highlight_symbol(">> ");
+        let area = Rect::new(0, 0, width, height);
+        let mut buffer = Buffer::empty(area);
+        ratatui::widgets::StatefulWidget::render(tree, area, &mut buffer, state);
+        buffer.set_style(area, Style::reset());
+        buffer
+    }
+
+    #[test]
+    fn empty_array_renders_nothing() {
+        let buffer = render(5, 3, "[]", &mut TreeState::default());
+        let expected = Buffer::with_lines(["     "; 3]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn empty_object_renders_nothing() {
+        let buffer = render(5, 3, "{}", &mut TreeState::default());
+        let expected = Buffer::with_lines(["     "; 3]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn number() {
+        let buffer = render(5, 2, "42", &mut TreeState::default());
+        let expected = Buffer::with_lines(["  42 ", ""]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn all_simple_in_array() {
+        let json = r#"[null, true, false, [], {}, 42, "lalala"]"#;
+        let buffer = render(12, 8, json, &mut TreeState::default());
+        let expected = Buffer::with_lines([
+            "  0: null   ",
+            "  1: true   ",
+            "  2: false  ",
+            "  3: []     ",
+            "  4: {}     ",
+            "  5: 42     ",
+            "  6: lalala ",
+            "            ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn bigger_example() {
+        let mut state = TreeState::default();
+        state.open(vec![key("foo")]);
+        state.open(vec![key("foo"), key("bar")]);
+
+        let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
+        let buffer = render(14, 6, json, &mut state);
+        let expected = Buffer::with_lines([
+            "▼ foo: {      ",
+            "  ▼ bar: [    ",
+            "      0: 13   ",
+            "      1: 37   ",
+            "  test: true  ",
+            "              ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn bigger_example_selection() {
+        let mut state = TreeState::default();
+        state.open(vec![key("foo")]);
+        state.open(vec![key("foo"), key("bar")]);
+        state.select(vec![key("foo"), key("bar"), Selector::ArrayIndex(1)]);
+
+        let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
+        let buffer = render(17, 6, json, &mut state);
+        let expected = Buffer::with_lines([
+            "   ▼ foo: {      ",
+            "     ▼ bar: [    ",
+            "         0: 13   ",
+            ">>       1: 37   ",
+            "     test: true  ",
+            "                 ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+}

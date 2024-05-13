@@ -339,20 +339,75 @@ where
     }
 }
 
-#[test]
-fn does_not_panic_on_render() {
-    fn inner(width: u16, height: u16) {
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+
+    #[must_use]
+    #[track_caller]
+    fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
         let tree = Tree::new(TreeItem::example()).unwrap();
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
-        Widget::render(tree, area, &mut buffer);
-        // TODO: assert buffer is empty
+        StatefulWidget::render(tree, area, &mut buffer, state);
+        buffer
     }
 
-    inner(0, 0);
-    inner(10, 0);
-    inner(0, 10);
+    #[test]
+    fn does_not_panic() {
+        _ = render(0, 0, &mut TreeState::default());
+        _ = render(10, 0, &mut TreeState::default());
+        _ = render(0, 10, &mut TreeState::default());
+        _ = render(10, 10, &mut TreeState::default());
+    }
 
-    // TODO: use dedicated test to ensure the content is correct
-    inner(10, 10);
+    #[test]
+    fn nothing_open() {
+        let buffer = render(10, 4, &mut TreeState::default());
+        #[rustfmt::skip]
+        let expected = Buffer::with_lines([
+            "  Alfa    ",
+            "▶ Bravo   ",
+            "  Hotel   ",
+            "          ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn depth_one() {
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        let buffer = render(13, 7, &mut state);
+        let expected = Buffer::with_lines([
+            "  Alfa       ",
+            "▼ Bravo      ",
+            "    Charlie  ",
+            "  ▶ Delta    ",
+            "    Golf     ",
+            "  Hotel      ",
+            "             ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn depth_two() {
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
+        let buffer = render(15, 9, &mut state);
+        let expected = Buffer::with_lines([
+            "  Alfa         ",
+            "▼ Bravo        ",
+            "    Charlie    ",
+            "  ▼ Delta      ",
+            "      Echo     ",
+            "      Foxtrot  ",
+            "    Golf       ",
+            "  Hotel        ",
+            "               ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
 }
