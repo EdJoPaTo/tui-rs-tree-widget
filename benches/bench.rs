@@ -83,6 +83,33 @@ fn metadata() -> serde_json::Value {
     metadata
 }
 
+fn open_all(state: &mut TreeState<Selector>, json: &serde_json::Value, selector: &[Selector]) {
+    match json {
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {}
+        serde_json::Value::Array(array) if array.is_empty() => {}
+        serde_json::Value::Array(array) => {
+            state.open(selector.to_vec());
+            for (index, value) in array.iter().enumerate() {
+                let mut child_selector = selector.to_vec();
+                child_selector.push(Selector::ArrayIndex(index));
+                open_all(state, value, &child_selector);
+            }
+        }
+        serde_json::Value::Object(object) if object.is_empty() => {}
+        serde_json::Value::Object(object) => {
+            state.open(selector.to_vec());
+            for (key, value) in object {
+                let mut child_selector = selector.to_vec();
+                child_selector.push(Selector::ObjectKey(key.clone()));
+                open_all(state, value, &child_selector);
+            }
+        }
+    }
+}
+
 fn key(key: &str) -> Selector {
     Selector::ObjectKey(key.to_owned())
 }
@@ -93,13 +120,15 @@ fn init(criterion: &mut Criterion) {
 
     group.bench_function("empty", |bencher| {
         bencher.iter(|| {
-            black_box(Tree::<usize>::new(black_box(vec![])).unwrap());
+            let items: Vec<TreeItem<usize>> = vec![];
+            black_box(Tree::new(black_box(items))).unwrap();
         });
     });
 
     group.bench_function("example-items", |bencher| {
         bencher.iter(|| {
-            black_box(Tree::new(black_box(example_items())).unwrap());
+            let items = example_items();
+            black_box(Tree::new(black_box(items))).unwrap();
         });
     });
 
@@ -119,51 +148,73 @@ fn renders(criterion: &mut Criterion) {
 
     let buffer_size = Rect::new(0, 0, 100, 100);
 
-    let tree = Tree::new(vec![]).unwrap();
     group.bench_function("empty", |bencher| {
+        let items: Vec<TreeItem<usize>> = vec![];
+        let tree = Tree::new(items).unwrap();
+        let mut state = TreeState::default();
         bencher.iter_batched(
-            || (tree.clone(), TreeState::<usize>::default()),
-            |(tree, mut state)| {
-                let mut buffer = Buffer::empty(buffer_size);
-                black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
             },
             BatchSize::SmallInput,
         );
     });
 
-    let tree = Tree::new(example_items()).unwrap();
     group.bench_function("example-items", |bencher| {
+        let items = example_items();
+        let tree = Tree::new(items).unwrap();
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
         bencher.iter_batched(
-            || {
-                let mut state = TreeState::default();
-                state.open(vec!["b"]);
-                state.open(vec!["b", "d"]);
-                (tree.clone(), state)
-            },
-            |(tree, mut state)| {
-                let mut buffer = Buffer::empty(buffer_size);
-                black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
             },
             BatchSize::SmallInput,
         );
     });
 
     let metadata = metadata();
-    let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
-    group.bench_function("metadata", |bencher| {
+
+    group.bench_function("metadata/no_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
         bencher.iter_batched(
-            || {
-                let mut state = TreeState::default();
-                state.open(vec![key("packages")]);
-                state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
-                state.open(vec![key("resolve")]);
-                state.open(vec![key("resolve"), key("nodes")]);
-                state.open(vec![key("resolve"), key("nodes"), Selector::ArrayIndex(0)]);
-                (tree.clone(), state)
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
             },
-            |(tree, mut state)| {
-                let mut buffer = Buffer::empty(buffer_size);
-                black_box(tree).render(buffer_size, black_box(&mut buffer), &mut state);
+            BatchSize::SmallInput,
+        );
+    });
+
+    group.bench_function("metadata/few_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
+        state.open(vec![key("packages")]);
+        state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
+        state.open(vec![key("resolve")]);
+        state.open(vec![key("resolve"), key("nodes")]);
+        state.open(vec![key("resolve"), key("nodes"), Selector::ArrayIndex(0)]);
+        bencher.iter_batched(
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
+            },
+            BatchSize::SmallInput,
+        );
+    });
+
+    group.bench_function("metadata/all_open", |bencher| {
+        let tree = Tree::new(tui_tree_widget::json::tree_items(&metadata)).unwrap();
+        let mut state = TreeState::default();
+        open_all(&mut state, &metadata, &[]);
+        bencher.iter_batched(
+            || (tree.clone(), Buffer::empty(buffer_size)),
+            |(tree, mut buffer)| {
+                black_box(tree).render(buffer_size, black_box(&mut buffer), black_box(&mut state));
             },
             BatchSize::SmallInput,
         );
