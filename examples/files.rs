@@ -17,9 +17,12 @@ struct FileTreeData(PathBuf);
 impl TreeData for FileTreeData {
     type Identifier = OsString;
 
-    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>> {
+    fn flatten(
+        &self,
+        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+    ) -> Vec<Node<Self::Identifier>> {
         let mut result = Vec::new();
-        flatten_inner(&mut result, open, &self.0, &[]);
+        flatten_recursive(&mut result, open_identifiers, &self.0, &[]);
         result
     }
 
@@ -50,18 +53,19 @@ impl TreeData for FileTreeData {
     }
 }
 
-fn flatten_inner(
+/// Collect all the (opened) filesystem entries.
+fn flatten_recursive(
     result: &mut Vec<Node<OsString>>,
-    open: &HashSet<Vec<OsString>>,
+    open_identifiers: &HashSet<Vec<OsString>>,
     path: &Path,
-    current: &[OsString],
+    current_identifier: &[OsString],
 ) {
     let Ok(read_dir) = path.read_dir() else {
         return;
     };
 
     for entry in read_dir.flatten() {
-        let mut child_identifier = current.to_vec();
+        let mut child_identifier = current_identifier.to_vec();
         child_identifier.push(entry.file_name());
 
         let is_dir = entry.metadata().is_ok_and(|metadata| metadata.is_dir());
@@ -72,8 +76,8 @@ fn flatten_inner(
             height: 1,
         });
 
-        if open.contains(&child_identifier) {
-            flatten_inner(result, open, &entry.path(), &child_identifier);
+        if open_identifiers.contains(&child_identifier) {
+            flatten_recursive(result, open_identifiers, &entry.path(), &child_identifier);
         }
     }
 }

@@ -58,15 +58,18 @@ fn get_value_span(value: &Value) -> Span {
 impl TreeData for Value {
     type Identifier = Selector;
 
-    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>> {
+    fn flatten(
+        &self,
+        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+    ) -> Vec<Node<Self::Identifier>> {
         match self {
             Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => vec![Node {
                 identifier: vec![Selector::None],
                 has_children: false,
                 height: 1,
             }],
-            Self::Array(array) => flatten_array(open, array, &[]),
-            Self::Object(object) => flatten_object(open, object, &[]),
+            Self::Array(array) => flatten_array(open_identifiers, array, &[]),
+            Self::Object(object) => flatten_object(open_identifiers, object, &[]),
         }
     }
 
@@ -116,24 +119,24 @@ impl TreeData for Value {
     }
 }
 
-fn flatten_inner(
+fn flatten_recursive(
+    open_identifiers: &HashSet<Vec<Selector>>,
     json: &Value,
-    open: &HashSet<Vec<Selector>>,
-    identifier: Vec<Selector>,
+    current_identifier: Vec<Selector>,
 ) -> Vec<Node<Selector>> {
     match json {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
-            identifier,
+            identifier: current_identifier,
             has_children: false,
             height: 1,
         }],
         Value::Array(array) => {
             let mut result = Vec::new();
-            let children = open
-                .contains(&identifier)
-                .then(|| flatten_array(open, array, &identifier));
+            let children = open_identifiers
+                .contains(&current_identifier)
+                .then(|| flatten_array(open_identifiers, array, &current_identifier));
             result.push(Node {
-                identifier,
+                identifier: current_identifier,
                 has_children: !array.is_empty(),
                 height: 1,
             });
@@ -144,11 +147,11 @@ fn flatten_inner(
         }
         Value::Object(object) => {
             let mut result = Vec::new();
-            let children = open
-                .contains(&identifier)
-                .then(|| flatten_object(open, object, &identifier));
+            let children = open_identifiers
+                .contains(&current_identifier)
+                .then(|| flatten_object(open_identifiers, object, &current_identifier));
             result.push(Node {
-                identifier,
+                identifier: current_identifier,
                 has_children: !object.is_empty(),
                 height: 1,
             });
@@ -161,32 +164,32 @@ fn flatten_inner(
 }
 
 fn flatten_object(
-    open: &HashSet<Vec<Selector>>,
+    open_identifiers: &HashSet<Vec<Selector>>,
     object: &serde_json::Map<String, Value>,
-    identifier: &[Selector],
+    current_identifier: &[Selector],
 ) -> Vec<Node<Selector>> {
     object
         .iter()
         .flat_map(|(key, value)| {
-            let mut identifier = identifier.to_vec();
-            identifier.push(Selector::ObjectKey(key.clone()));
-            flatten_inner(value, open, identifier)
+            let mut child_identifier = current_identifier.to_vec();
+            child_identifier.push(Selector::ObjectKey(key.clone()));
+            flatten_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }
 
 fn flatten_array(
-    open: &HashSet<Vec<Selector>>,
+    open_identifiers: &HashSet<Vec<Selector>>,
     array: &[Value],
-    identifier: &[Selector],
+    current_identifier: &[Selector],
 ) -> Vec<Node<Selector>> {
     array
         .iter()
         .enumerate()
         .flat_map(|(index, value)| {
-            let mut identifier = identifier.to_vec();
-            identifier.push(Selector::ArrayIndex(index));
-            flatten_inner(value, open, identifier)
+            let mut child_identifier = current_identifier.to_vec();
+            child_identifier.push(Selector::ArrayIndex(index));
+            flatten_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }

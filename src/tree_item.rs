@@ -206,8 +206,11 @@ where
 {
     type Identifier = Identifier;
 
-    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>> {
-        flatten_inner(open, self, &[])
+    fn flatten(
+        &self,
+        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+    ) -> Vec<Node<Self::Identifier>> {
+        flatten_recursive(open_identifiers, self, &[])
     }
 
     fn render(
@@ -223,22 +226,22 @@ where
     }
 }
 
-fn flatten_inner<Identifier>(
-    open: &HashSet<Vec<Identifier>>,
+fn flatten_recursive<Identifier>(
+    open_identifiers: &HashSet<Vec<Identifier>>,
     items: &[TreeItem<'_, Identifier>],
-    current: &[Identifier],
+    current_identifier: &[Identifier],
 ) -> Vec<Node<Identifier>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
     let mut result = Vec::new();
     for item in items {
-        let mut child_identifier = current.to_vec();
+        let mut child_identifier = current_identifier.to_vec();
         child_identifier.push(item.identifier.clone());
 
-        let child_result = open
+        let child_result = open_identifiers
             .contains(&child_identifier)
-            .then(|| flatten_inner(open, &item.children, &child_identifier));
+            .then(|| flatten_recursive(open_identifiers, &item.children, &child_identifier));
 
         result.push(Node {
             identifier: child_identifier,

@@ -30,7 +30,10 @@ where
     ///
     /// The top level is always accessable while nodes need to be open for their children to be visible.
     /// Which are open/closed is stored in a [`TreeState`](crate::TreeState) which state is available here.
-    fn flatten(&self, open: &HashSet<Vec<Self::Identifier>>) -> Vec<Node<Self::Identifier>>;
+    fn flatten(
+        &self,
+        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+    ) -> Vec<Node<Self::Identifier>>;
 
     /// Render the given node to the buffer.
     ///
