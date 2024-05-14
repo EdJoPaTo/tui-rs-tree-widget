@@ -193,7 +193,7 @@ where
             return;
         }
 
-        let visible = flatten::flatten(&state.opened, self.items, &[]);
+        let visible = flatten::flatten(&state.open, self.items, &[]);
         state.last_biggest_index = visible.len().saturating_sub(1);
         if visible.is_empty() {
             return;
@@ -300,7 +300,7 @@ where
                 );
                 let symbol = if flattened.has_no_children {
                     self.node_no_children_symbol
-                } else if state.opened.contains(&flattened.identifier) {
+                } else if state.open.contains(&flattened.identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
