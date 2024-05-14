@@ -44,4 +44,11 @@ where
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     );
+
+    fn total_required_height(&self, open_identifiers: &HashSet<Vec<Self::Identifier>>) -> usize {
+        self.flatten(open_identifiers)
+            .iter()
+            .map(|node: &Node<<Self as TreeData>::Identifier>| node.height)
+            .fold(0, usize::saturating_add)
+    }
 }
