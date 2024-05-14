@@ -30,7 +30,7 @@ where
     ///
     /// The top level is always accessable while nodes need to be open for their children to be visible.
     /// Which are open/closed is stored in a [`TreeState`](crate::TreeState) which state is available here.
-    fn flatten(
+    fn get_nodes(
         &self,
         open_identifiers: &HashSet<Vec<Self::Identifier>>,
     ) -> Vec<Node<Self::Identifier>>;
@@ -46,7 +46,7 @@ where
     );
 
     fn total_required_height(&self, open_identifiers: &HashSet<Vec<Self::Identifier>>) -> usize {
-        self.flatten(open_identifiers)
+        self.get_nodes(open_identifiers)
             .iter()
             .map(|node: &Node<<Self as TreeData>::Identifier>| node.height)
             .fold(0, usize::saturating_add)

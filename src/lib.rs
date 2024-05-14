@@ -169,18 +169,18 @@ where
             return;
         }
 
-        let visible = self.data.flatten(&state.open);
-        state.last_biggest_index = visible.len().saturating_sub(1);
-        if visible.is_empty() {
+        let nodes = self.data.get_nodes(&state.open);
+        state.last_biggest_index = nodes.len().saturating_sub(1);
+        if nodes.is_empty() {
             return;
         }
         let available_height = area.height as usize;
 
         let ensure_index_in_view =
             if state.ensure_selected_in_view_on_next_render && !state.selected.is_empty() {
-                visible
+                nodes
                     .iter()
-                    .position(|flattened| flattened.identifier == state.selected)
+                    .position(|node| node.identifier == state.selected)
             } else {
                 None
             };
@@ -194,7 +194,7 @@ where
 
         let mut end = start;
         let mut height = 0;
-        for item_height in visible.iter().skip(start).map(|flattened| flattened.height) {
+        for item_height in nodes.iter().skip(start).map(|node| node.height) {
             if height + item_height > available_height {
                 break;
             }
@@ -204,10 +204,10 @@ where
 
         if let Some(ensure_index_in_view) = ensure_index_in_view {
             while ensure_index_in_view >= end {
-                height += visible[end].height;
+                height += nodes[end].height;
                 end += 1;
                 while height > available_height {
-                    height = height.saturating_sub(visible[start].height);
+                    height = height.saturating_sub(nodes[start].height);
                     start += 1;
                 }
             }
@@ -217,7 +217,7 @@ where
         state.ensure_selected_in_view_on_next_render = false;
 
         if let Some(scrollbar) = self.scrollbar {
-            let mut scrollbar_state = ScrollbarState::new(visible.len().saturating_sub(height))
+            let mut scrollbar_state = ScrollbarState::new(nodes.len().saturating_sub(height))
                 .position(start)
                 .viewport_content_length(height);
             let scrollbar_area = Rect {
@@ -236,7 +236,7 @@ where
         let mut current_height = 0;
         let has_selection = !state.selected.is_empty();
         #[allow(clippy::cast_possible_truncation)]
-        for node in visible.iter().skip(state.offset).take(end - start) {
+        for node in nodes.iter().skip(state.offset).take(end - start) {
             let x = area.x;
             let y = area.y + current_height;
             let height = node.height as u16;
@@ -295,10 +295,7 @@ where
                 buf.set_style(area, self.highlight_style);
             }
         }
-        state.last_visible_identifiers = visible
-            .into_iter()
-            .map(|flattened| flattened.identifier)
-            .collect();
+        state.last_visible_identifiers = nodes.into_iter().map(|node| node.identifier).collect();
     }
 }
 

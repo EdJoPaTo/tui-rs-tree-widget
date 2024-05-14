@@ -58,7 +58,7 @@ fn get_value_span(value: &Value) -> Span {
 impl TreeData for Value {
     type Identifier = Selector;
 
-    fn flatten(
+    fn get_nodes(
         &self,
         open_identifiers: &HashSet<Vec<Self::Identifier>>,
     ) -> Vec<Node<Self::Identifier>> {
@@ -68,8 +68,8 @@ impl TreeData for Value {
                 has_children: false,
                 height: 1,
             }],
-            Self::Array(array) => flatten_array(open_identifiers, array, &[]),
-            Self::Object(object) => flatten_object(open_identifiers, object, &[]),
+            Self::Array(array) => get_array_nodes(open_identifiers, array, &[]),
+            Self::Object(object) => get_object_nodes(open_identifiers, object, &[]),
         }
     }
 
@@ -119,7 +119,7 @@ impl TreeData for Value {
     }
 }
 
-fn flatten_recursive(
+fn get_nodes_recursive(
     open_identifiers: &HashSet<Vec<Selector>>,
     json: &Value,
     current_identifier: Vec<Selector>,
@@ -134,7 +134,7 @@ fn flatten_recursive(
             let mut result = Vec::new();
             let children = open_identifiers
                 .contains(&current_identifier)
-                .then(|| flatten_array(open_identifiers, array, &current_identifier));
+                .then(|| get_array_nodes(open_identifiers, array, &current_identifier));
             result.push(Node {
                 identifier: current_identifier,
                 has_children: !array.is_empty(),
@@ -149,7 +149,7 @@ fn flatten_recursive(
             let mut result = Vec::new();
             let children = open_identifiers
                 .contains(&current_identifier)
-                .then(|| flatten_object(open_identifiers, object, &current_identifier));
+                .then(|| get_object_nodes(open_identifiers, object, &current_identifier));
             result.push(Node {
                 identifier: current_identifier,
                 has_children: !object.is_empty(),
@@ -163,7 +163,7 @@ fn flatten_recursive(
     }
 }
 
-fn flatten_object(
+fn get_object_nodes(
     open_identifiers: &HashSet<Vec<Selector>>,
     object: &serde_json::Map<String, Value>,
     current_identifier: &[Selector],
@@ -173,12 +173,12 @@ fn flatten_object(
         .flat_map(|(key, value)| {
             let mut child_identifier = current_identifier.to_vec();
             child_identifier.push(Selector::ObjectKey(key.clone()));
-            flatten_recursive(open_identifiers, value, child_identifier)
+            get_nodes_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }
 
-fn flatten_array(
+fn get_array_nodes(
     open_identifiers: &HashSet<Vec<Selector>>,
     array: &[Value],
     current_identifier: &[Selector],
@@ -189,7 +189,7 @@ fn flatten_array(
         .flat_map(|(index, value)| {
             let mut child_identifier = current_identifier.to_vec();
             child_identifier.push(Selector::ArrayIndex(index));
-            flatten_recursive(open_identifiers, value, child_identifier)
+            get_nodes_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }
@@ -218,7 +218,7 @@ mod tree_data_tests {
         open.insert(vec![key("foo"), key("bar")]);
 
         let json: Value = serde_json::from_str(input).expect("invalid JSON string");
-        json.flatten(&open)
+        json.get_nodes(&open)
     }
 
     #[test]

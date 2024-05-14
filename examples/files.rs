@@ -17,12 +17,12 @@ struct FileTreeData(PathBuf);
 impl TreeData for FileTreeData {
     type Identifier = OsString;
 
-    fn flatten(
+    fn get_nodes(
         &self,
         open_identifiers: &HashSet<Vec<Self::Identifier>>,
     ) -> Vec<Node<Self::Identifier>> {
         let mut result = Vec::new();
-        flatten_recursive(&mut result, open_identifiers, &self.0, &[]);
+        get_nodes_recursive(&mut result, open_identifiers, &self.0, &[]);
         result
     }
 
@@ -54,7 +54,7 @@ impl TreeData for FileTreeData {
 }
 
 /// Collect all the (opened) filesystem entries.
-fn flatten_recursive(
+fn get_nodes_recursive(
     result: &mut Vec<Node<OsString>>,
     open_identifiers: &HashSet<Vec<OsString>>,
     path: &Path,
@@ -64,7 +64,10 @@ fn flatten_recursive(
         return;
     };
 
-    for entry in read_dir.flatten() {
+    // ignore errors
+    let entries = read_dir.flatten();
+
+    for entry in entries {
         let mut child_identifier = current_identifier.to_vec();
         child_identifier.push(entry.file_name());
 
@@ -77,7 +80,7 @@ fn flatten_recursive(
         });
 
         if open_identifiers.contains(&child_identifier) {
-            flatten_recursive(result, open_identifiers, &entry.path(), &child_identifier);
+            get_nodes_recursive(result, open_identifiers, &entry.path(), &child_identifier);
         }
     }
 }
