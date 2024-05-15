@@ -4,6 +4,8 @@ use ratatui::text::Text;
 
 use crate::{Node, TreeData};
 
+mod flatten;
+
 /// One item inside a [`Tree`](crate::Tree).
 ///
 /// Can have zero or more `children`.
@@ -210,7 +212,7 @@ where
         &self,
         open_identifiers: &HashSet<Vec<Self::Identifier>>,
     ) -> Vec<Node<Self::Identifier>> {
-        flatten(open_identifiers, self, &[])
+        flatten::flatten(open_identifiers, self, &[])
     }
 
     fn render(
@@ -224,34 +226,4 @@ where
         };
         ratatui::widgets::Widget::render(&item.text, area, buffer);
     }
-}
-
-fn flatten<Identifier>(
-    open_identifiers: &HashSet<Vec<Identifier>>,
-    items: &[TreeItem<'_, Identifier>],
-    current_identifier: &[Identifier],
-) -> Vec<Node<Identifier>>
-where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
-{
-    let mut result = Vec::new();
-    for item in items {
-        let mut child_identifier = current_identifier.to_vec();
-        child_identifier.push(item.identifier.clone());
-
-        let child_result = open_identifiers
-            .contains(&child_identifier)
-            .then(|| flatten(open_identifiers, &item.children, &child_identifier));
-
-        result.push(Node {
-            identifier: child_identifier,
-            has_children: !item.children.is_empty(),
-            height: item.text.height(),
-        });
-
-        if let Some(mut child_result) = child_result {
-            result.append(&mut child_result);
-        }
-    }
-    result
 }

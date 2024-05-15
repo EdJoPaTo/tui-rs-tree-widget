@@ -43,8 +43,14 @@ where
     }
 
     #[must_use]
+    #[deprecated = "use self.get_selected"]
     pub fn selected(&self) -> Vec<Identifier> {
         self.selected.clone()
+    }
+
+    #[must_use]
+    pub fn get_selected(&self) -> &[Identifier] {
+        &self.selected
     }
 
     /// Selects the given identifier.
@@ -104,8 +110,19 @@ where
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when nothing is selected.
     pub fn toggle_selected(&mut self) -> bool {
+        if self.selected.is_empty() {
+            return false;
+        }
+
         self.ensure_selected_in_view_on_next_render = true;
-        self.toggle(self.selected())
+
+        // Reimplement self.close because of multiple different borrows
+        let was_open = self.open.remove(&self.selected);
+        if was_open {
+            return true;
+        }
+
+        self.open(self.selected.clone())
     }
 
     /// Closes all open nodes.
@@ -259,9 +276,13 @@ where
     /// Opens the currently selected.
     ///
     /// Returns `true` when it was closed and has been opened.
-    /// Returns `false` when it was already open.
+    /// Returns `false` when it was already open or nothing being selected.
     pub fn key_right(&mut self) -> bool {
-        self.ensure_selected_in_view_on_next_render = true;
-        self.open(self.selected())
+        if self.selected.is_empty() {
+            false
+        } else {
+            self.ensure_selected_in_view_on_next_render = true;
+            self.open(self.selected.clone())
+        }
     }
 }
