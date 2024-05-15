@@ -325,7 +325,7 @@ where
                 buf.set_style(area, self.highlight_style);
             }
         }
-        state.last_visible_identifiers = visible
+        state.last_identifiers = visible
             .into_iter()
             .map(|flattened| flattened.identifier)
             .collect();
