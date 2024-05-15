@@ -9,7 +9,8 @@ on:
     - cron: '42 2 * * 6' # weekly on Saturday 2:42 UTC
 
 env:
-  RUSTFLAGS: --deny warnings
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
 
 jobs:
   rustfmt:
@@ -23,61 +24,108 @@ jobs:
       - uses: actions/checkout@v4
       - run: cargo fmt --check --verbose
 
-  test:
-    name: Test ${{ matrix.toolchain }} ${{ matrix.os }} ${{ matrix.features }}
-    runs-on: ${{ matrix.os }}
+  clippy:
+    name: Clippy ${{ matrix.toolchain }}
+    runs-on: ubuntu-latest
     continue-on-error: ${{ (matrix.toolchain == 'beta') || (matrix.toolchain == 'nightly') }}
     strategy:
       fail-fast: false
       matrix:
         toolchain:
           - stable
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
-        clippyargs:
-          - -D clippy::pedantic
-        features:
-          - "" # default features
-        include:
-          # Check future versions and maybe get some glances on soon to be lints
-          - toolchain: beta
-            os: ubuntu-latest
-            features: --all-features
-            clippyargs: -D clippy::pedantic -D clippy::nursery -D clippy::cargo
-          - toolchain: nightly
-            os: ubuntu-latest
-            features: --all-features
-            clippyargs: -D clippy::pedantic
+          - beta
+          - nightly
+    env:
+      RUSTFLAGS: --deny warnings
     steps:
       - name: Setup Rust
+        id: rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
           components: clippy
+      - uses: actions/checkout@v4
+      - run: cargo fetch
+      - uses: actions/cache@v4
+        with:
+          key: clippy-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
+          path: target/
+      - run: cargo clippy --offline --all-features --all-targets
+      - run: cargo doc --offline --all-features --no-deps
+
+  features:
+    name: Features ${{ matrix.toolchain }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable
+          - beta
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    env:
+      RUSTFLAGS: --allow unknown-lints --deny warnings
+    steps:
+      - name: Setup Rust
+        id: rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
 
       - uses: actions/checkout@v4
+      - run: cargo fetch
+      - uses: actions/cache@v4
+        with:
+          key: features-${{ matrix.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
+          path: target/
 
-      - name: Fetch dependencies
-        run: cargo fetch --verbose
+      - name: Check all targets
+        run: cargo hack --keep-going --feature-powerset check --all-targets --offline
 
-      - name: Check clippy
-        run: cargo clippy --verbose --all-targets ${{ matrix.features }} -- ${{ matrix.clippyargs }}
+      - name: Check without dev dependencies
+        run: cargo hack --keep-going --feature-powerset --no-dev-deps check --offline
 
-      - name: Check docs
-        run: cargo doc --verbose --no-deps ${{ matrix.features }}
+  test:
+    name: Test ${{ matrix.toolchain }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.toolchain == 'nightly' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable
+          - beta
+          - nightly
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    steps:
+      - name: Setup Rust
+        id: rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: actions/checkout@v4
+      - run: cargo fetch
+      - uses: actions/cache@v4
+        with:
+          key: test-${{ matrix.os }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
+          path: target/
+      - run: cargo build --offline --all-features --all-targets
+      - run: cargo test --offline --all-features --no-fail-fast
 
-      - name: Build
-        run: cargo build --verbose --all-targets ${{ matrix.features }}
-
-      - name: Run tests
-        run: cargo test --verbose ${{ matrix.features }}
-
-  github-release:
+  release:
     name: Release ${{ matrix.triple }}
     runs-on: ${{ matrix.os }}
-    needs: test
     strategy:
       fail-fast: false
       matrix:
@@ -102,8 +150,11 @@ jobs:
             os: windows-latest
           - triple: aarch64-pc-windows-msvc
             os: windows-latest
+    env:
+      RUSTFLAGS: --deny warnings
     steps:
       - name: Setup Rust
+        id: rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -116,9 +167,11 @@ jobs:
           tool: cross
 
       - uses: actions/checkout@v4
-
-      - name: Fetch dependencies
-        run: cargo fetch --verbose
+      - run: cargo fetch
+      - uses: actions/cache@v4
+        with:
+          key: release-${{ matrix.triple }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('**/Cargo.*') }}
+          path: target/
 
       - name: Build
-        run: ${{ runner.os == 'Linux' && 'cross' || 'cargo' }} build --release --verbose --target ${{ matrix.triple }}
+        run: ${{ runner.os == 'Linux' && 'cross' || 'cargo' }} build --release --offline --all-features --target ${{ matrix.triple }}
