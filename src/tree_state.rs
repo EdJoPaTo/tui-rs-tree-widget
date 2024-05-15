@@ -59,10 +59,10 @@ where
 
     /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
     #[must_use]
-    pub fn flatten<'a>(
+    pub fn flatten<'text>(
         &self,
-        items: &'a [TreeItem<'a, Identifier>],
-    ) -> Vec<Flattened<'a, Identifier>> {
+        items: &'text [TreeItem<'text, Identifier>],
+    ) -> Vec<Flattened<'text, Identifier>> {
         flatten(&self.open, items, &[])
     }
 
