@@ -81,7 +81,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.size();
-        let widget = Tree::new(self.items.clone())
+        let widget = Tree::new(&self.items)
             .expect("all item identifiers are unique")
             .block(
                 Block::bordered()
