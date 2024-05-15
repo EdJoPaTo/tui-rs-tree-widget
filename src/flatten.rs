@@ -11,7 +11,7 @@ pub struct Flattened<'text, Identifier> {
 }
 
 impl<Identifier> Flattened<'_, Identifier> {
-    /// Zero based depth. Depth 0 means 0 indentation.
+    /// Zero based depth. Depth 0 means top level with 0 indentation.
     #[must_use]
     pub fn depth(&self) -> usize {
         self.identifier.len() - 1
@@ -23,7 +23,7 @@ impl<Identifier> Flattened<'_, Identifier> {
 /// `current` starts empty: `&[]`
 #[must_use]
 pub fn flatten<'text, Identifier>(
-    opened: &HashSet<Vec<Identifier>>,
+    open_identifiers: &HashSet<Vec<Identifier>>,
     items: &'text [TreeItem<'text, Identifier>],
     current: &[Identifier],
 ) -> Vec<Flattened<'text, Identifier>>
@@ -35,9 +35,9 @@ where
         let mut child_identifier = current.to_vec();
         child_identifier.push(item.identifier.clone());
 
-        let child_result = opened
+        let child_result = open_identifiers
             .contains(&child_identifier)
-            .then(|| flatten(opened, &item.children, &child_identifier));
+            .then(|| flatten(open_identifiers, &item.children, &child_identifier));
 
         result.push(Flattened {
             identifier: child_identifier,
@@ -53,10 +53,10 @@ where
 
 #[test]
 fn depth_works() {
-    let mut opened = HashSet::new();
-    opened.insert(vec!["b"]);
-    opened.insert(vec!["b", "d"]);
-    let depths = flatten(&opened, &TreeItem::example(), &[])
+    let mut open = HashSet::new();
+    open.insert(vec!["b"]);
+    open.insert(vec!["b", "d"]);
+    let depths = flatten(&open, &TreeItem::example(), &[])
         .into_iter()
         .map(|flattened| flattened.depth())
         .collect::<Vec<_>>();
@@ -64,9 +64,9 @@ fn depth_works() {
 }
 
 #[cfg(test)]
-fn flatten_works(opened: &HashSet<Vec<&'static str>>, expected: &[&str]) {
+fn flatten_works(open: &HashSet<Vec<&'static str>>, expected: &[&str]) {
     let items = TreeItem::example();
-    let result = flatten(opened, &items, &[]);
+    let result = flatten(open, &items, &[]);
     let actual = result
         .into_iter()
         .map(|flattened| flattened.identifier.into_iter().last().unwrap())
@@ -75,30 +75,30 @@ fn flatten_works(opened: &HashSet<Vec<&'static str>>, expected: &[&str]) {
 }
 
 #[test]
-fn get_opened_nothing_opened_is_top_level() {
-    let opened = HashSet::new();
-    flatten_works(&opened, &["a", "b", "h"]);
+fn flatten_nothing_open_is_top_level() {
+    let open = HashSet::new();
+    flatten_works(&open, &["a", "b", "h"]);
 }
 
 #[test]
-fn get_opened_wrong_opened_is_only_top_level() {
-    let mut opened = HashSet::new();
-    opened.insert(vec!["a"]);
-    opened.insert(vec!["b", "d"]);
-    flatten_works(&opened, &["a", "b", "h"]);
+fn flatten_wrong_open_is_only_top_level() {
+    let mut open = HashSet::new();
+    open.insert(vec!["a"]);
+    open.insert(vec!["b", "d"]);
+    flatten_works(&open, &["a", "b", "h"]);
 }
 
 #[test]
-fn get_opened_one_is_opened() {
-    let mut opened = HashSet::new();
-    opened.insert(vec!["b"]);
-    flatten_works(&opened, &["a", "b", "c", "d", "g", "h"]);
+fn flatten_one_is_open() {
+    let mut open = HashSet::new();
+    open.insert(vec!["b"]);
+    flatten_works(&open, &["a", "b", "c", "d", "g", "h"]);
 }
 
 #[test]
-fn get_opened_all_opened() {
-    let mut opened = HashSet::new();
-    opened.insert(vec!["b"]);
-    opened.insert(vec!["b", "d"]);
-    flatten_works(&opened, &["a", "b", "c", "d", "e", "f", "g", "h"]);
+fn flatten_all_open() {
+    let mut open = HashSet::new();
+    open.insert(vec!["b"]);
+    open.insert(vec!["b", "d"]);
+    flatten_works(&open, &["a", "b", "c", "d", "e", "f", "g", "h"]);
 }
