@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use ratatui::layout::{Position, Rect};
+
 use crate::flatten::{flatten, Flattened};
 use crate::tree_item::TreeItem;
 
@@ -23,9 +25,12 @@ pub struct TreeState<Identifier> {
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
 
+    pub(super) last_area: Rect,
     pub(super) last_biggest_index: usize,
     /// All identifiers open on last render
     pub(super) last_identifiers: Vec<Vec<Identifier>>,
+    /// Identifier rendered at `y` on last render
+    pub(super) last_rendered_identifiers: Vec<(u16, Vec<Identifier>)>,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -173,6 +178,7 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
+    #[deprecated = "Prefer self.click_at as visible index is hard to predict with height != 1"]
     pub fn select_visible_index(&mut self, new_index: usize) -> bool {
         let new_index = new_index.min(self.last_biggest_index);
         let new_identifier = self
@@ -250,6 +256,32 @@ where
         let new_index = change_function(current_index).min(self.last_biggest_index);
         let new_identifier = identifiers.get(new_index).cloned().unwrap_or_default();
         self.select(new_identifier)
+    }
+
+    /// Select what was rendered at the given position on last render.
+    /// When it is already selected, toggle it.
+    ///
+    /// Returns `true` when the state changed.
+    /// Returns `false` when there was nothing at the given position.
+    pub fn click_at(&mut self, position: Position) -> bool {
+        if !self.last_area.contains(position) {
+            return false;
+        }
+        // Look from the end. Find the first item which is rendered at or before the searched position.
+        let at_position = self
+            .last_rendered_identifiers
+            .iter()
+            .rev()
+            .find(|(y, _)| position.y >= *y);
+        if let Some((_y, identifier)) = at_position {
+            if identifier == &self.selected {
+                self.toggle_selected()
+            } else {
+                self.select(identifier.clone())
+            }
+        } else {
+            false
+        }
     }
 
     /// Ensure the selected [`TreeItem`] is in view on next render

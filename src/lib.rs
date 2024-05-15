@@ -186,6 +186,8 @@ where
             inner_area
         });
 
+        state.last_area = area;
+        state.last_rendered_identifiers.clear();
         if area.width < 1 || area.height < 1 {
             return;
         }
@@ -324,6 +326,10 @@ where
             if is_selected {
                 buf.set_style(area, self.highlight_style);
             }
+
+            state
+                .last_rendered_identifiers
+                .push((area.y, identifier.clone()));
         }
         state.last_identifiers = visible
             .into_iter()
