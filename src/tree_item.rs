@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use ratatui::style::Style;
 use ratatui::text::Text;
 
 /// One item inside a [`Tree`](crate::Tree).
@@ -35,14 +34,13 @@ use ratatui::text::Text;
 /// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, Clone)]
-pub struct TreeItem<'a, Identifier> {
+pub struct TreeItem<'text, Identifier> {
     pub(super) identifier: Identifier,
-    pub(super) text: Text<'a>,
-    pub(super) style: Style,
-    pub(super) children: Vec<TreeItem<'a, Identifier>>,
+    pub(super) text: Text<'text>,
+    pub(super) children: Vec<Self>,
 }
 
-impl<'a, Identifier> TreeItem<'a, Identifier>
+impl<'text, Identifier> TreeItem<'text, Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
@@ -50,12 +48,11 @@ where
     #[must_use]
     pub fn new_leaf<T>(identifier: Identifier, text: T) -> Self
     where
-        T: Into<Text<'a>>,
+        T: Into<Text<'text>>,
     {
         Self {
             identifier,
             text: text.into(),
-            style: Style::new(),
             children: Vec::new(),
         }
     }
@@ -67,7 +64,7 @@ where
     /// Errors when there are duplicate identifiers in the children.
     pub fn new<T>(identifier: Identifier, text: T, children: Vec<Self>) -> std::io::Result<Self>
     where
-        T: Into<Text<'a>>,
+        T: Into<Text<'text>>,
     {
         let identifiers = children
             .iter()
@@ -83,13 +80,12 @@ where
         Ok(Self {
             identifier,
             text: text.into(),
-            style: Style::new(),
             children,
         })
     }
 
     #[must_use]
-    pub fn children(&self) -> &[TreeItem<Identifier>] {
+    pub fn children(&self) -> &[Self] {
         &self.children
     }
 
@@ -112,12 +108,6 @@ where
         self.text.height()
     }
 
-    #[must_use]
-    pub const fn style(mut self, style: Style) -> Self {
-        self.style = style;
-        self
-    }
-
     /// Add a child to the `TreeItem`.
     ///
     /// # Errors
@@ -138,6 +128,31 @@ where
 
         self.children.push(child);
         Ok(())
+    }
+}
+
+impl TreeItem<'static, &'static str> {
+    #[cfg(test)]
+    pub(crate) fn example() -> Vec<Self> {
+        vec![
+            Self::new_leaf("a", "Alfa"),
+            Self::new(
+                "b",
+                "Bravo",
+                vec![
+                    Self::new_leaf("c", "Charlie"),
+                    Self::new(
+                        "d",
+                        "Delta",
+                        vec![Self::new_leaf("e", "Echo"), Self::new_leaf("f", "Foxtrot")],
+                    )
+                    .expect("all item identifiers are unique"),
+                    Self::new_leaf("g", "Golf"),
+                ],
+            )
+            .expect("all item identifiers are unique"),
+            Self::new_leaf("h", "Hotel"),
+        ]
     }
 }
 

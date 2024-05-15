@@ -16,12 +16,14 @@ use crate::tree_item::TreeItem;
 ///
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
-    pub(super) opened: HashSet<Vec<Identifier>>,
+    pub(super) open: HashSet<Vec<Identifier>>,
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
+    pub(super) last_biggest_index: usize,
+    pub(super) last_visible_identifiers: Vec<Vec<Identifier>>,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -34,22 +36,34 @@ where
     }
 
     #[must_use]
+    #[deprecated = "Use self.get_open()"]
     pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
-        self.opened.iter().cloned().collect()
+        self.open.iter().cloned().collect()
+    }
+
+    #[must_use]
+    pub const fn get_open(&self) -> &HashSet<Vec<Identifier>> {
+        &self.open
+    }
+
+    #[must_use]
+    #[deprecated = "use self.get_selected"]
+    pub fn selected(&self) -> Vec<Identifier> {
+        self.selected.clone()
+    }
+
+    #[must_use]
+    pub fn get_selected(&self) -> &[Identifier] {
+        &self.selected
     }
 
     /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
     #[must_use]
-    pub fn flatten<'a>(
+    pub fn flatten<'text>(
         &self,
-        items: &'a [TreeItem<'a, Identifier>],
-    ) -> Vec<Flattened<'a, Identifier>> {
-        flatten(&self.opened, items)
-    }
-
-    #[must_use]
-    pub fn selected(&self) -> Vec<Identifier> {
-        self.selected.clone()
+        items: &'text [TreeItem<'text, Identifier>],
+    ) -> Vec<Flattened<'text, Identifier>> {
+        flatten(&self.open, items, &[])
     }
 
     /// Selects the given identifier.
@@ -71,56 +85,67 @@ where
     }
 
     /// Open a tree node.
-    /// Returns `true` if the node was closed and has been opened.
-    /// Returns `false` if the node was already open.
+    /// Returns `true` when it was closed and has been opened.
+    /// Returns `false` when it was already open.
     pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
         } else {
-            self.opened.insert(identifier)
+            self.open.insert(identifier)
         }
     }
 
     /// Close a tree node.
-    /// Returns `true` if the node was open and has been closed.
-    /// Returns `false` if the node was already closed.
+    /// Returns `true` when it was open and has been closed.
+    /// Returns `false` when it was already closed.
     pub fn close(&mut self, identifier: &[Identifier]) -> bool {
-        self.opened.remove(identifier)
+        self.open.remove(identifier)
     }
 
-    /// Toggles a tree node.
-    /// If the node is in opened then it calls [`close`](Self::close). Otherwise it calls [`open`](Self::open).
+    /// Toggles a tree node open/close state.
+    /// When it is currently open, then [`close`](Self::close) is called. Otherwise [`open`](Self::open).
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when an empty identifier is given.
     pub fn toggle(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
-        } else if self.opened.contains(&identifier) {
+        } else if self.open.contains(&identifier) {
             self.close(&identifier)
         } else {
             self.open(identifier)
         }
     }
 
-    /// Toggles the currently selected tree node.
+    /// Toggles the currently selected tree node open/close state.
     /// See also [`toggle`](Self::toggle)
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when nothing is selected.
     pub fn toggle_selected(&mut self) -> bool {
+        if self.selected.is_empty() {
+            return false;
+        }
+
         self.ensure_selected_in_view_on_next_render = true;
-        self.toggle(self.selected())
+
+        // Reimplement self.close because of multiple different borrows
+        let was_open = self.open.remove(&self.selected);
+        if was_open {
+            return true;
+        }
+
+        self.open(self.selected.clone())
     }
 
     /// Closes all open nodes.
     ///
     /// Returns `true` when any node was closed.
     pub fn close_all(&mut self) -> bool {
-        if self.opened.is_empty() {
+        if self.open.is_empty() {
             false
         } else {
-            self.opened.clear();
+            self.open.clear();
             true
         }
     }
@@ -128,22 +153,24 @@ where
     /// Select the first node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_first(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        let identifier = items
+    pub fn select_first(&mut self) -> bool {
+        let identifier = self
+            .last_visible_identifiers
             .first()
-            .map_or(Vec::new(), |item| vec![item.identifier.clone()]);
+            .cloned()
+            .unwrap_or_default();
         self.select(identifier)
     }
 
     /// Select the last visible node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn select_last(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        let visible = self.flatten(items);
-        let new_identifier = visible
-            .into_iter()
+    pub fn select_last(&mut self) -> bool {
+        let new_identifier = self
+            .last_visible_identifiers
             .last()
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+            .cloned()
+            .unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -152,17 +179,13 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    pub fn select_visible_index(
-        &mut self,
-        items: &[TreeItem<Identifier>],
-        new_index: usize,
-    ) -> bool {
-        let visible = self.flatten(items);
-        let new_index = new_index.min(visible.len().saturating_sub(1));
-        let new_identifier = visible
-            .into_iter()
-            .nth(new_index)
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+    pub fn select_visible_index(&mut self, new_index: usize) -> bool {
+        let new_index = new_index.min(self.last_biggest_index);
+        let new_identifier = self
+            .last_visible_identifiers
+            .get(new_index)
+            .cloned()
+            .unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -174,35 +197,27 @@ where
     ///
     /// ```
     /// # use tui_tree_widget::TreeState;
-    /// # let items = vec![];
     /// # type Identifier = usize;
     /// # let mut state = TreeState::<Identifier>::default();
     /// // Move the selection one down
-    /// state.select_visible_relative(&items, |current| {
+    /// state.select_visible_relative(|current| {
     ///     current.map_or(0, |current| current.saturating_add(1))
     /// });
     /// ```
     ///
     /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
     /// They are implemented with this method.
-    pub fn select_visible_relative<F>(
-        &mut self,
-        items: &[TreeItem<Identifier>],
-        change_function: F,
-    ) -> bool
+    pub fn select_visible_relative<F>(&mut self, change_function: F) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
-        let visible = self.flatten(items);
-        let current_identifier = self.selected();
+        let visible = &self.last_visible_identifiers;
+        let current_identifier = &self.selected;
         let current_index = visible
             .iter()
-            .position(|flattened| flattened.identifier == current_identifier);
-        let new_index = change_function(current_index).min(visible.len().saturating_sub(1));
-        let new_identifier = visible
-            .into_iter()
-            .nth(new_index)
-            .map_or(Vec::new(), |flattened| flattened.identifier);
+            .position(|identifier| identifier == current_identifier);
+        let new_index = change_function(current_index).min(self.last_biggest_index);
+        let new_identifier = visible.get(new_index).cloned().unwrap_or_default();
         self.select(new_identifier)
     }
 
@@ -223,19 +238,23 @@ where
 
     /// Scroll the specified amount of lines down
     ///
-    /// In contrast to [`scroll_up()`](Self::scroll_up) this can not return whether the view position changed or not as the actual change is determined on render.
-    /// Always returns `true`.
+    /// Returns `true` when the scroll position changed.
+    /// Returns `false` when the scrolling has reached the last [`TreeItem`].
     pub fn scroll_down(&mut self, lines: usize) -> bool {
-        self.offset = self.offset.saturating_add(lines);
-        true
+        let before = self.offset;
+        self.offset = self
+            .offset
+            .saturating_add(lines)
+            .min(self.last_biggest_index);
+        before != self.offset
     }
 
     /// Handles the up arrow key.
     /// Moves up in the current depth or to its parent.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_up(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        self.select_visible_relative(items, |current| {
+    pub fn key_up(&mut self) -> bool {
+        self.select_visible_relative(|current| {
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         })
     }
@@ -244,8 +263,8 @@ where
     /// Moves down in the current depth or into a child node.
     ///
     /// Returns `true` when the selection changed.
-    pub fn key_down(&mut self, items: &[TreeItem<Identifier>]) -> bool {
-        self.select_visible_relative(items, |current| {
+    pub fn key_down(&mut self) -> bool {
+        self.select_visible_relative(|current| {
             current.map_or(0, |current| current.saturating_add(1))
         })
     }
@@ -257,7 +276,7 @@ where
     pub fn key_left(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
         // Reimplement self.close because of multiple different borrows
-        let mut changed = self.opened.remove(&self.selected);
+        let mut changed = self.open.remove(&self.selected);
         if !changed {
             // Select the parent by removing the leaf from selection
             let popped = self.selected.pop();
@@ -269,10 +288,14 @@ where
     /// Handles the right arrow key.
     /// Opens the currently selected.
     ///
-    /// Returns `true` if the node was closed and has been opened.
-    /// Returns `false` if the node was already open.
+    /// Returns `true` when it was closed and has been opened.
+    /// Returns `false` when it was already open or nothing being selected.
     pub fn key_right(&mut self) -> bool {
-        self.ensure_selected_in_view_on_next_render = true;
-        self.open(self.selected())
+        if self.selected.is_empty() {
+            false
+        } else {
+            self.ensure_selected_in_view_on_next_render = true;
+            self.open(self.selected.clone())
+        }
     }
 }
