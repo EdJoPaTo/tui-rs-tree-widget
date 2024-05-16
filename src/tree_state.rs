@@ -178,7 +178,7 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    #[deprecated = "Prefer self.click_at as visible index is hard to predict with height != 1"]
+    #[deprecated = "Prefer self.select_at, self.click_at or self.rendered_at as visible index is hard to predict with height != 1"]
     pub fn select_visible_index(&mut self, new_index: usize) -> bool {
         let new_index = new_index.min(self.last_biggest_index);
         let new_identifier = self
@@ -258,26 +258,50 @@ where
         self.select(new_identifier)
     }
 
+    /// Select the node that was rendered for the given position on last render.
+    ///
+    /// Returns `true` when the selection changed.
+    #[must_use]
+    pub fn select_at(&mut self, position: Position) -> bool {
+        if let Some(identifier) = self.rendered_at(position) {
+            if identifier == self.selected {
+                false
+            } else {
+                self.select(identifier.to_vec())
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Get the identifier that was rendered for the given position on last render.
+    #[must_use]
+    pub fn rendered_at(&self, position: Position) -> Option<&[Identifier]> {
+        if !self.last_area.contains(position) {
+            return None;
+        }
+
+        let at_position = self
+            .last_rendered_identifiers
+            .iter()
+            .rev()
+            .find(|(y, _)| position.y >= *y)
+            .map(|(_, identifier)| identifier.as_ref());
+
+        at_position
+    }
+
     /// Select what was rendered at the given position on last render.
     /// When it is already selected, toggle it.
     ///
     /// Returns `true` when the state changed.
     /// Returns `false` when there was nothing at the given position.
     pub fn click_at(&mut self, position: Position) -> bool {
-        if !self.last_area.contains(position) {
-            return false;
-        }
-        // Look from the end. Find the first item which is rendered at or before the searched position.
-        let at_position = self
-            .last_rendered_identifiers
-            .iter()
-            .rev()
-            .find(|(y, _)| position.y >= *y);
-        if let Some((_y, identifier)) = at_position {
-            if identifier == &self.selected {
+        if let Some(identifier) = self.rendered_at(position) {
+            if identifier == self.selected {
                 self.toggle_selected()
             } else {
-                self.select(identifier.clone())
+                self.select(identifier.to_vec())
             }
         } else {
             false
