@@ -281,14 +281,11 @@ where
             return None;
         }
 
-        let at_position = self
-            .last_rendered_identifiers
+        self.last_rendered_identifiers
             .iter()
             .rev()
             .find(|(y, _)| position.y >= *y)
-            .map(|(_, identifier)| identifier.as_ref());
-
-        at_position
+            .map(|(_, identifier)| identifier.as_ref())
     }
 
     /// Select what was rendered at the given position on last render.
