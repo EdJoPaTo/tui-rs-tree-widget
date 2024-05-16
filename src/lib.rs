@@ -42,7 +42,7 @@ mod tree_state;
 /// terminal.draw(|frame| {
 ///     let area = frame.size();
 ///
-///     let tree_widget = Tree::new(items)
+///     let tree_widget = Tree::new(&items)
 ///         .expect("all item identifiers are unique")
 ///         .block(Block::bordered().title("Tree Widget"));
 ///
@@ -52,7 +52,7 @@ mod tree_state;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Tree<'a, Identifier> {
-    items: Vec<TreeItem<'a, Identifier>>,
+    items: &'a [TreeItem<'a, Identifier>],
 
     block: Option<Block<'a>>,
     scrollbar: Option<Scrollbar<'a>>,
@@ -81,7 +81,7 @@ where
     /// # Errors
     ///
     /// Errors when there are duplicate identifiers in the children.
-    pub fn new(items: Vec<TreeItem<'a, Identifier>>) -> std::io::Result<Self> {
+    pub fn new(items: &'a [TreeItem<'a, Identifier>]) -> std::io::Result<Self> {
         let identifiers = items
             .iter()
             .map(|item| &item.identifier)
@@ -166,7 +166,7 @@ where
 fn tree_new_errors_with_duplicate_identifiers() {
     let item = TreeItem::new_leaf("same", "text");
     let another = item.clone();
-    Tree::new(vec![item, another]).unwrap();
+    Tree::new(&[item, another]).unwrap();
 }
 
 impl<Identifier> StatefulWidget for Tree<'_, Identifier>
@@ -192,7 +192,7 @@ where
             return;
         }
 
-        let visible = state.flatten(&self.items);
+        let visible = state.flatten(self.items);
         state.last_biggest_index = visible.len().saturating_sub(1);
         if visible.is_empty() {
             return;
@@ -355,7 +355,8 @@ mod render_tests {
     #[must_use]
     #[track_caller]
     fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
-        let tree = Tree::new(TreeItem::example()).unwrap();
+        let items = TreeItem::example();
+        let tree = Tree::new(&items).unwrap();
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
         StatefulWidget::render(tree, area, &mut buffer, state);
