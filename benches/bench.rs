@@ -74,14 +74,14 @@ fn init(criterion: &mut Criterion) {
     group.bench_function("empty", |bencher| {
         bencher.iter(|| {
             let items: Vec<TreeItem<usize>> = vec![];
-            black_box(Tree::new(black_box(items))).unwrap();
+            black_box(Tree::new(black_box(&items))).unwrap();
         });
     });
 
     group.bench_function("example-items", |bencher| {
         bencher.iter(|| {
             let items = example_items();
-            black_box(Tree::new(black_box(items))).unwrap();
+            black_box(Tree::new(black_box(&items))).unwrap();
         });
     });
 
@@ -96,7 +96,7 @@ fn renders(criterion: &mut Criterion) {
 
     group.bench_function("empty", |bencher| {
         let items: Vec<TreeItem<usize>> = vec![];
-        let tree = Tree::new(items).unwrap();
+        let tree = Tree::new(&items).unwrap();
         let mut state = TreeState::default();
         bencher.iter_batched(
             || (tree.clone(), Buffer::empty(buffer_size)),
@@ -109,7 +109,7 @@ fn renders(criterion: &mut Criterion) {
 
     group.bench_function("example-items", |bencher| {
         let items = example_items();
-        let tree = Tree::new(items).unwrap();
+        let tree = Tree::new(&items).unwrap();
         let mut state = TreeState::default();
         state.open(vec!["b"]);
         state.open(vec!["b", "d"]);
