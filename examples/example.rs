@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
-use ratatui::layout::Rect;
+use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
@@ -165,6 +165,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollDown => app.state.scroll_down(1),
                     MouseEventKind::ScrollUp => app.state.scroll_up(1),
+                    MouseEventKind::Down(_button) => {
+                        app.state.click_at(Position::new(mouse.column, mouse.row))
+                    }
                     _ => false,
                 },
                 Event::Resize(_, _) => true,

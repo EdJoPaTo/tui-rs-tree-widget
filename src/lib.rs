@@ -165,11 +165,13 @@ where
             inner_area
         });
 
+        state.last_area = area;
+        state.last_rendered_identifiers.clear();
         if area.width < 1 || area.height < 1 {
             return;
         }
 
-        let nodes = self.data.get_nodes(&state.open);
+        let nodes = self.data.get_nodes(&state.opened);
         state.last_biggest_index = nodes.len().saturating_sub(1);
         if nodes.is_empty() {
             return;
@@ -273,7 +275,7 @@ where
                 );
                 let symbol = if !node.has_children {
                     self.node_no_children_symbol
-                } else if state.open.contains(&node.identifier) {
+                } else if state.opened.contains(&node.identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
@@ -294,8 +296,12 @@ where
             if is_selected {
                 buf.set_style(area, self.highlight_style);
             }
+
+            state
+                .last_rendered_identifiers
+                .push((area.y, node.identifier.clone()));
         }
-        state.last_visible_identifiers = nodes.into_iter().map(|node| node.identifier).collect();
+        state.last_identifiers = nodes.into_iter().map(|node| node.identifier).collect();
     }
 }
 
@@ -306,8 +312,8 @@ mod render_tests {
     #[must_use]
     #[track_caller]
     fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
-        let data = TreeItem::example();
-        let tree = Tree::new(&data);
+        let items = TreeItem::example();
+        let tree = Tree::new(&items);
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
         StatefulWidget::render(tree, area, &mut buffer, state);
