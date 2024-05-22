@@ -305,7 +305,7 @@ where
                 );
                 let symbol = if item.children.is_empty() {
                     self.node_no_children_symbol
-                } else if state.open.contains(identifier) {
+                } else if state.opened.contains(identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol

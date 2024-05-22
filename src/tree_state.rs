@@ -21,7 +21,7 @@ use crate::tree_item::TreeItem;
 #[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
-    pub(super) open: HashSet<Vec<Identifier>>,
+    pub(super) opened: HashSet<Vec<Identifier>>,
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
 
@@ -43,24 +43,18 @@ where
     }
 
     #[must_use]
-    #[deprecated = "Use self.get_open()"]
+    #[deprecated = "Use self.opened()"]
     pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
-        self.open.iter().cloned().collect()
+        self.opened.iter().cloned().collect()
     }
 
     #[must_use]
-    pub const fn get_open(&self) -> &HashSet<Vec<Identifier>> {
-        &self.open
+    pub const fn opened(&self) -> &HashSet<Vec<Identifier>> {
+        &self.opened
     }
 
     #[must_use]
-    #[deprecated = "use self.get_selected"]
-    pub fn selected(&self) -> Vec<Identifier> {
-        self.selected.clone()
-    }
-
-    #[must_use]
-    pub fn get_selected(&self) -> &[Identifier] {
+    pub fn selected(&self) -> &[Identifier] {
         &self.selected
     }
 
@@ -70,7 +64,7 @@ where
         &self,
         items: &'text [TreeItem<'text, Identifier>],
     ) -> Vec<Flattened<'text, Identifier>> {
-        flatten(&self.open, items, &[])
+        flatten(&self.opened, items, &[])
     }
 
     /// Selects the given identifier.
@@ -98,7 +92,7 @@ where
         if identifier.is_empty() {
             false
         } else {
-            self.open.insert(identifier)
+            self.opened.insert(identifier)
         }
     }
 
@@ -106,7 +100,7 @@ where
     /// Returns `true` when it was open and has been closed.
     /// Returns `false` when it was already closed.
     pub fn close(&mut self, identifier: &[Identifier]) -> bool {
-        self.open.remove(identifier)
+        self.opened.remove(identifier)
     }
 
     /// Toggles a tree node open/close state.
@@ -117,7 +111,7 @@ where
     pub fn toggle(&mut self, identifier: Vec<Identifier>) -> bool {
         if identifier.is_empty() {
             false
-        } else if self.open.contains(&identifier) {
+        } else if self.opened.contains(&identifier) {
             self.close(&identifier)
         } else {
             self.open(identifier)
@@ -137,7 +131,7 @@ where
         self.ensure_selected_in_view_on_next_render = true;
 
         // Reimplement self.close because of multiple different borrows
-        let was_open = self.open.remove(&self.selected);
+        let was_open = self.opened.remove(&self.selected);
         if was_open {
             return true;
         }
@@ -149,10 +143,10 @@ where
     ///
     /// Returns `true` when any node was closed.
     pub fn close_all(&mut self) -> bool {
-        if self.open.is_empty() {
+        if self.opened.is_empty() {
             false
         } else {
-            self.open.clear();
+            self.opened.clear();
             true
         }
     }
@@ -346,7 +340,7 @@ where
     pub fn key_left(&mut self) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
         // Reimplement self.close because of multiple different borrows
-        let mut changed = self.open.remove(&self.selected);
+        let mut changed = self.opened.remove(&self.selected);
         if !changed {
             // Select the parent by removing the leaf from selection
             let popped = self.selected.pop();
