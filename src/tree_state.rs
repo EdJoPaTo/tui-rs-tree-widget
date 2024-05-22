@@ -178,7 +178,7 @@ where
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
-    #[deprecated = "Prefer self.select_at, self.click_at or self.rendered_at as visible index is hard to predict with height != 1"]
+    #[deprecated = "Prefer self.click_at or self.rendered_at as visible index is hard to predict with height != 1"]
     pub fn select_visible_index(&mut self, new_index: usize) -> bool {
         let new_index = new_index.min(self.last_biggest_index);
         let new_identifier = self
