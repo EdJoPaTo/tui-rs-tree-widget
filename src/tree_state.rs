@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use ratatui::layout::{Position, Rect};
+
 use crate::flatten::{flatten, Flattened};
 use crate::tree_item::TreeItem;
 
@@ -22,8 +24,13 @@ pub struct TreeState<Identifier> {
     pub(super) open: HashSet<Vec<Identifier>>,
     pub(super) selected: Vec<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
+
+    pub(super) last_area: Rect,
     pub(super) last_biggest_index: usize,
-    pub(super) last_visible_identifiers: Vec<Vec<Identifier>>,
+    /// All identifiers open on last render
+    pub(super) last_identifiers: Vec<Vec<Identifier>>,
+    /// Identifier rendered at `y` on last render
+    pub(super) last_rendered_identifiers: Vec<(u16, Vec<Identifier>)>,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -57,7 +64,7 @@ where
         &self.selected
     }
 
-    /// Get a flat list of all visible (= below open) [`TreeItem`]s with this `TreeState`.
+    /// Get a flat list of all currently viewable (including by scrolling) [`TreeItem`]s with this `TreeState`.
     #[must_use]
     pub fn flatten<'text>(
         &self,
@@ -154,35 +161,28 @@ where
     ///
     /// Returns `true` when the selection changed.
     pub fn select_first(&mut self) -> bool {
-        let identifier = self
-            .last_visible_identifiers
-            .first()
-            .cloned()
-            .unwrap_or_default();
+        let identifier = self.last_identifiers.first().cloned().unwrap_or_default();
         self.select(identifier)
     }
 
-    /// Select the last visible node.
+    /// Select the last node.
     ///
     /// Returns `true` when the selection changed.
     pub fn select_last(&mut self) -> bool {
-        let new_identifier = self
-            .last_visible_identifiers
-            .last()
-            .cloned()
-            .unwrap_or_default();
+        let new_identifier = self.last_identifiers.last().cloned().unwrap_or_default();
         self.select(new_identifier)
     }
 
-    /// Select the node visible on the given index.
+    /// Select the node on the given index.
     ///
     /// Returns `true` when the selection changed.
     ///
     /// This can be useful for mouse clicks.
+    #[deprecated = "Prefer self.click_at or self.rendered_at as visible index is hard to predict with height != 1"]
     pub fn select_visible_index(&mut self, new_index: usize) -> bool {
         let new_index = new_index.min(self.last_biggest_index);
         let new_identifier = self
-            .last_visible_identifiers
+            .last_identifiers
             .get(new_index)
             .cloned()
             .unwrap_or_default();
@@ -201,27 +201,95 @@ where
     /// # let mut state = TreeState::<Identifier>::default();
     /// // Move the selection one down
     /// state.select_visible_relative(|current| {
+    ///     // When nothing is currently selected, select index 0
+    ///     // Otherwise select current + 1 (without panicing)
     ///     current.map_or(0, |current| current.saturating_add(1))
     /// });
     /// ```
     ///
     /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
     /// They are implemented with this method.
+    #[deprecated = "renamed to select_relative"]
     pub fn select_visible_relative<F>(&mut self, change_function: F) -> bool
     where
         F: FnOnce(Option<usize>) -> usize,
     {
-        let visible = &self.last_visible_identifiers;
+        let identifiers = &self.last_identifiers;
         let current_identifier = &self.selected;
-        let current_index = visible
+        let current_index = identifiers
             .iter()
             .position(|identifier| identifier == current_identifier);
         let new_index = change_function(current_index).min(self.last_biggest_index);
-        let new_identifier = visible.get(new_index).cloned().unwrap_or_default();
+        let new_identifier = identifiers.get(new_index).cloned().unwrap_or_default();
         self.select(new_identifier)
     }
 
-    /// Ensure the selected [`TreeItem`] is visible on next render
+    /// Move the current selection with the direction/amount by the given function.
+    ///
+    /// Returns `true` when the selection changed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use tui_tree_widget::TreeState;
+    /// # type Identifier = usize;
+    /// # let mut state = TreeState::<Identifier>::default();
+    /// // Move the selection one down
+    /// state.select_relative(|current| {
+    ///     // When nothing is currently selected, select index 0
+    ///     // Otherwise select current + 1 (without panicing)
+    ///     current.map_or(0, |current| current.saturating_add(1))
+    /// });
+    /// ```
+    ///
+    /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
+    /// They are implemented with this method.
+    pub fn select_relative<F>(&mut self, change_function: F) -> bool
+    where
+        F: FnOnce(Option<usize>) -> usize,
+    {
+        let identifiers = &self.last_identifiers;
+        let current_identifier = &self.selected;
+        let current_index = identifiers
+            .iter()
+            .position(|identifier| identifier == current_identifier);
+        let new_index = change_function(current_index).min(self.last_biggest_index);
+        let new_identifier = identifiers.get(new_index).cloned().unwrap_or_default();
+        self.select(new_identifier)
+    }
+
+    /// Get the identifier that was rendered for the given position on last render.
+    #[must_use]
+    pub fn rendered_at(&self, position: Position) -> Option<&[Identifier]> {
+        if !self.last_area.contains(position) {
+            return None;
+        }
+
+        self.last_rendered_identifiers
+            .iter()
+            .rev()
+            .find(|(y, _)| position.y >= *y)
+            .map(|(_, identifier)| identifier.as_ref())
+    }
+
+    /// Select what was rendered at the given position on last render.
+    /// When it is already selected, toggle it.
+    ///
+    /// Returns `true` when the state changed.
+    /// Returns `false` when there was nothing at the given position.
+    pub fn click_at(&mut self, position: Position) -> bool {
+        if let Some(identifier) = self.rendered_at(position) {
+            if identifier == self.selected {
+                self.toggle_selected()
+            } else {
+                self.select(identifier.to_vec())
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Ensure the selected [`TreeItem`] is in view on next render
     pub fn scroll_selected_into_view(&mut self) {
         self.ensure_selected_in_view_on_next_render = true;
     }
@@ -254,7 +322,8 @@ where
     ///
     /// Returns `true` when the selection changed.
     pub fn key_up(&mut self) -> bool {
-        self.select_visible_relative(|current| {
+        self.select_relative(|current| {
+            // When nothing is selected, fall back to end
             current.map_or(usize::MAX, |current| current.saturating_sub(1))
         })
     }
@@ -264,7 +333,8 @@ where
     ///
     /// Returns `true` when the selection changed.
     pub fn key_down(&mut self) -> bool {
-        self.select_visible_relative(|current| {
+        self.select_relative(|current| {
+            // When nothing is selected, fall back to start
             current.map_or(0, |current| current.saturating_add(1))
         })
     }
