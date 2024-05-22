@@ -1,14 +1,14 @@
 [package]
 name = "tui-tree-widget"
 description = "Tree Widget for ratatui"
-version = "0.19.0"
+version = "0.20.0"
 license = "MIT"
 repository = "https://github.com/EdJoPaTo/tui-rs-tree-widget"
 authors = ["EdJoPaTo <tui-tree-widget-rust-crate@edjopato.de>"]
 edition = "2021"
 keywords = ["tui", "terminal", "tree", "widget"]
 categories = ["command-line-interface"]
-include = ["src/**/*", "README.md"]
+include = ["src/**/*", "examples/**/*", "benches/**/*", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
