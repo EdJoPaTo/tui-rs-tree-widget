@@ -258,22 +258,6 @@ where
         self.select(new_identifier)
     }
 
-    /// Select the node that was rendered for the given position on last render.
-    ///
-    /// Returns `true` when the selection changed.
-    #[must_use]
-    pub fn select_at(&mut self, position: Position) -> bool {
-        if let Some(identifier) = self.rendered_at(position) {
-            if identifier == self.selected {
-                false
-            } else {
-                self.select(identifier.to_vec())
-            }
-        } else {
-            false
-        }
-    }
-
     /// Get the identifier that was rendered for the given position on last render.
     #[must_use]
     pub fn rendered_at(&self, position: Position) -> Option<&[Identifier]> {
