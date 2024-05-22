@@ -84,6 +84,12 @@ where
         })
     }
 
+    /// Get a reference to the identifier.
+    #[must_use]
+    pub const fn identifier(&self) -> &Identifier {
+        &self.identifier
+    }
+
     #[must_use]
     pub fn children(&self) -> &[Self] {
         &self.children
