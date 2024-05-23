@@ -139,6 +139,7 @@ where
 
 impl TreeItem<'static, &'static str> {
     #[cfg(test)]
+    #[must_use]
     pub(crate) fn example() -> Vec<Self> {
         vec![
             Self::new_leaf("a", "Alfa"),

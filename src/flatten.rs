@@ -5,6 +5,7 @@ use crate::tree_item::TreeItem;
 /// A flattened item of all visible [`TreeItem`]s.
 ///
 /// Generated via [`TreeState::flatten`](crate::TreeState::flatten).
+#[must_use]
 pub struct Flattened<'text, Identifier> {
     pub identifier: Vec<Identifier>,
     pub item: &'text TreeItem<'text, Identifier>,

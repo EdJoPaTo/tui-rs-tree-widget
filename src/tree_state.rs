@@ -18,6 +18,7 @@ use crate::tree_item::TreeItem;
 ///
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
+#[must_use]
 #[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
