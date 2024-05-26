@@ -9,6 +9,7 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
+#[must_use]
 struct App {
     state: TreeState<&'static str>,
     items: Vec<TreeItem<'static, &'static str>>,

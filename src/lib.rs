@@ -53,6 +53,7 @@ mod tree_state;
 /// })?;
 /// # Ok::<(), std::io::Error>(())
 /// ```
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Tree<'a, Data> {
     data: &'a Data,
@@ -95,7 +96,6 @@ where
     }
 
     #[allow(clippy::missing_const_for_fn)]
-    #[must_use]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
         self
@@ -106,43 +106,36 @@ where
     /// Experimental: Can change on any release without any additional notice.
     /// Its there to test and experiment with whats possible with scrolling widgets.
     /// Also see <https://github.com/ratatui-org/ratatui/issues/174>
-    #[must_use]
     pub const fn experimental_scrollbar(mut self, scrollbar: Option<Scrollbar<'a>>) -> Self {
         self.scrollbar = scrollbar;
         self
     }
 
-    #[must_use]
     pub const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
-    #[must_use]
     pub const fn highlight_style(mut self, style: Style) -> Self {
         self.highlight_style = style;
         self
     }
 
-    #[must_use]
     pub const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = highlight_symbol;
         self
     }
 
-    #[must_use]
     pub const fn node_closed_symbol(mut self, symbol: &'a str) -> Self {
         self.node_closed_symbol = symbol;
         self
     }
 
-    #[must_use]
     pub const fn node_open_symbol(mut self, symbol: &'a str) -> Self {
         self.node_open_symbol = symbol;
         self
     }
 
-    #[must_use]
     pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
         self.node_no_children_symbol = symbol;
         self

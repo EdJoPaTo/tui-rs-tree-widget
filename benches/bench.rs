@@ -6,6 +6,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
 use tui_tree_widget::{Selector, Tree, TreeItem, TreeState};
 
+#[must_use]
 fn example_items() -> Vec<TreeItem<'static, &'static str>> {
     vec![
         TreeItem::new_leaf("a", "Alfa"),
@@ -121,14 +122,14 @@ fn init(criterion: &mut Criterion) {
     group.bench_function("empty", |bencher| {
         bencher.iter(|| {
             let items: Vec<TreeItem<usize>> = vec![];
-            black_box(Tree::new(black_box(&items)));
+            let _: Tree<_> = black_box(Tree::new(black_box(&items)));
         });
     });
 
     group.bench_function("example-items", |bencher| {
         bencher.iter(|| {
             let items = example_items();
-            black_box(Tree::new(black_box(&items)));
+            let _: Tree<_> = black_box(Tree::new(black_box(&items)));
         });
     });
 
@@ -138,7 +139,7 @@ fn init(criterion: &mut Criterion) {
     let metadata = metadata();
     group.bench_function("metadata", |bencher| {
         bencher.iter(|| {
-            black_box(Tree::new(black_box(&metadata)));
+            let _: Tree<_> = black_box(Tree::new(black_box(&metadata)));
         });
     });
 

@@ -1,6 +1,7 @@
 /// A node in a [`Tree`](crate::Tree).
 ///
 /// Identified by an [Identifier](crate::TreeData::Identifier) and knows some information it will be rendered with.
+#[must_use]
 #[derive(Debug, PartialEq, Eq)]
 pub struct Node<Identifier> {
     pub identifier: Vec<Identifier>,

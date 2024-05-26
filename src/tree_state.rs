@@ -14,6 +14,7 @@ use ratatui::layout::{Position, Rect};
 ///
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
+#[must_use]
 #[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
