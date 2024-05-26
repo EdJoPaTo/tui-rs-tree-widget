@@ -17,6 +17,7 @@ pub use crate::tree_data::TreeData;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
 
+mod flatten;
 mod identifier;
 #[cfg(feature = "serde_json")]
 pub mod json;

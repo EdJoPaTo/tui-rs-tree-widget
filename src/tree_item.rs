@@ -4,8 +4,6 @@ use ratatui::text::Text;
 
 use crate::{Node, TreeData};
 
-mod flatten;
-
 /// One item inside a [`Tree`](crate::Tree).
 ///
 /// Can have zero or more `children`.
@@ -218,7 +216,7 @@ where
         &self,
         open_identifiers: &HashSet<Vec<Self::Identifier>>,
     ) -> Vec<Node<Self::Identifier>> {
-        flatten::flatten(open_identifiers, self, &[])
+        crate::flatten::flatten(open_identifiers, self, &[])
     }
 
     fn render(
