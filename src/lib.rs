@@ -259,7 +259,7 @@ where
             };
 
             let after_depth_x = {
-                let indent_width = node.depth() * 2;
+                let indent_width = node.depth * 2;
                 let (after_indent_x, _) = buf.set_stringn(
                     after_highlight_symbol_x,
                     y,

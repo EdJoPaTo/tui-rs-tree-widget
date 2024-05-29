@@ -74,9 +74,10 @@ fn get_nodes_recursive(
         let is_dir = entry.metadata().is_ok_and(|metadata| metadata.is_dir());
 
         result.push(Node {
-            identifier: child_identifier.clone(),
+            depth: child_identifier.len() - 1,
             has_children: is_dir,
             height: 1,
+            identifier: child_identifier.clone(),
         });
 
         if open_identifiers.contains(&child_identifier) {

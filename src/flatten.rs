@@ -24,9 +24,10 @@ where
             .then(|| flatten(open_identifiers, &item.children, &child_identifier));
 
         result.push(Node {
-            identifier: child_identifier,
+            depth: child_identifier.len() - 1,
             has_children: !item.children.is_empty(),
             height: item.text.height(),
+            identifier: child_identifier,
         });
 
         if let Some(mut child_result) = child_result {
@@ -43,7 +44,7 @@ fn depth_works() {
     open.insert(vec!["b", "d"]);
     let depths = flatten(&open, &TreeItem::example(), &[])
         .into_iter()
-        .map(|flattened| flattened.depth())
+        .map(|flattened| flattened.depth)
         .collect::<Vec<_>>();
     assert_eq!(depths, [0, 0, 1, 1, 2, 2, 1, 0]);
 }

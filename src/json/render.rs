@@ -64,9 +64,10 @@ impl TreeData for Value {
     ) -> Vec<Node<Self::Identifier>> {
         match self {
             Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => vec![Node {
-                identifier: vec![Selector::None],
+                depth: 0,
                 has_children: false,
                 height: 1,
+                identifier: vec![Selector::None],
             }],
             Self::Array(array) => get_array_nodes(open_identifiers, array, &[]),
             Self::Object(object) => get_object_nodes(open_identifiers, object, &[]),
@@ -124,11 +125,13 @@ fn get_nodes_recursive(
     json: &Value,
     current_identifier: Vec<Selector>,
 ) -> Vec<Node<Selector>> {
+    let depth = current_identifier.len() - 1;
     match json {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
-            identifier: current_identifier,
+            depth,
             has_children: false,
             height: 1,
+            identifier: current_identifier,
         }],
         Value::Array(array) => {
             let mut result = Vec::new();
@@ -136,9 +139,10 @@ fn get_nodes_recursive(
                 .contains(&current_identifier)
                 .then(|| get_array_nodes(open_identifiers, array, &current_identifier));
             result.push(Node {
-                identifier: current_identifier,
+                depth,
                 has_children: !array.is_empty(),
                 height: 1,
+                identifier: current_identifier,
             });
             if let Some(mut children) = children {
                 result.append(&mut children);
@@ -151,9 +155,10 @@ fn get_nodes_recursive(
                 .contains(&current_identifier)
                 .then(|| get_object_nodes(open_identifiers, object, &current_identifier));
             result.push(Node {
-                identifier: current_identifier,
+                depth,
                 has_children: !object.is_empty(),
                 height: 1,
+                identifier: current_identifier,
             });
             if let Some(mut children) = children {
                 result.append(&mut children);
@@ -203,11 +208,13 @@ fn key(key: &str) -> Selector {
 mod tree_data_tests {
     use super::*;
 
-    const fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Selector> {
+    #[track_caller]
+    fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Selector> {
         Node {
-            identifier,
+            depth: identifier.len() - 1,
             has_children,
             height: 1,
+            identifier,
         }
     }
 
