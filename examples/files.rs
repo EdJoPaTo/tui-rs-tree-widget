@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -15,35 +14,28 @@ use tui_tree_widget::{Node, Tree, TreeData, TreeState};
 struct FileTreeData(PathBuf);
 
 impl TreeData for FileTreeData {
-    type Identifier = OsString;
+    type Identifier = PathBuf;
 
     fn get_nodes(
         &self,
-        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+        open_identifiers: &HashSet<Self::Identifier>,
     ) -> Vec<Node<Self::Identifier>> {
         let mut result = Vec::new();
-        get_nodes_recursive(&mut result, open_identifiers, &self.0, &[]);
+        get_nodes_recursive(&mut result, open_identifiers, &self.0, 0);
         result
     }
 
     fn render(
         &self,
-        identifier: &[Self::Identifier],
+        identifier: &Self::Identifier,
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     ) {
-        let mut path = self.0.clone();
-        for i in identifier {
-            path = path.join(i);
-        }
-
         let mut spans = Vec::new();
-
-        if let Some(filename) = path.file_stem() {
+        if let Some(filename) = identifier.file_stem() {
             spans.push(Span::raw(filename.to_string_lossy()));
         }
-
-        if let Some(extension) = path.extension() {
+        if let Some(extension) = identifier.extension() {
             const STYLE: Style = Style::new().fg(Color::DarkGray);
             spans.push(Span::styled(".", STYLE));
             spans.push(Span::styled(extension.to_string_lossy(), STYLE));
@@ -55,10 +47,10 @@ impl TreeData for FileTreeData {
 
 /// Collect all the (opened) filesystem entries.
 fn get_nodes_recursive(
-    result: &mut Vec<Node<OsString>>,
-    open_identifiers: &HashSet<Vec<OsString>>,
+    result: &mut Vec<Node<PathBuf>>,
+    open_identifiers: &HashSet<PathBuf>,
     path: &Path,
-    current_identifier: &[OsString],
+    depth: usize,
 ) {
     let Ok(read_dir) = path.read_dir() else {
         return;
@@ -68,26 +60,24 @@ fn get_nodes_recursive(
     let entries = read_dir.flatten();
 
     for entry in entries {
-        let mut child_identifier = current_identifier.to_vec();
-        child_identifier.push(entry.file_name());
-
         let is_dir = entry.metadata().is_ok_and(|metadata| metadata.is_dir());
+        let path = entry.path();
 
         result.push(Node {
-            depth: child_identifier.len() - 1,
+            depth,
             has_children: is_dir,
             height: 1,
-            identifier: child_identifier.clone(),
+            identifier: path.clone(),
         });
 
-        if open_identifiers.contains(&child_identifier) {
-            get_nodes_recursive(result, open_identifiers, &entry.path(), &child_identifier);
+        if open_identifiers.contains(&path) {
+            get_nodes_recursive(result, open_identifiers, &path, depth + 1);
         }
     }
 }
 
 struct App {
-    state: TreeState<OsString>,
+    state: TreeState<PathBuf>,
 }
 
 impl App {
@@ -174,7 +164,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     KeyCode::Right => app.state.key_right(),
                     KeyCode::Down => app.state.key_down(),
                     KeyCode::Up => app.state.key_up(),
-                    KeyCode::Esc => app.state.select(Vec::new()),
+                    KeyCode::Esc => app.state.select(None),
                     KeyCode::Home => app.state.select_first(),
                     KeyCode::End => app.state.select_last(),
                     KeyCode::PageDown => app.state.scroll_down(3),

@@ -32,7 +32,7 @@ where
     /// Which are open/closed is stored in a [`TreeState`](crate::TreeState) which state is available here.
     fn get_nodes(
         &self,
-        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+        open_identifiers: &HashSet<Self::Identifier>,
     ) -> Vec<Node<Self::Identifier>>;
 
     /// Render the given node to the buffer.
@@ -40,12 +40,12 @@ where
     /// Very similar to [`ratatui::widgets::Widget`].
     fn render(
         &self,
-        identifier: &[Self::Identifier],
+        identifier: &Self::Identifier,
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     );
 
-    fn total_required_height(&self, open_identifiers: &HashSet<Vec<Self::Identifier>>) -> usize {
+    fn total_required_height(&self, open_identifiers: &HashSet<Self::Identifier>) -> usize {
         self.get_nodes(open_identifiers)
             .iter()
             .map(|node: &Node<<Self as TreeData>::Identifier>| node.height)

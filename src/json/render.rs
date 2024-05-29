@@ -56,11 +56,11 @@ fn get_value_span(value: &Value) -> Span {
 }
 
 impl TreeData for Value {
-    type Identifier = Selector;
+    type Identifier = String;
 
     fn get_nodes(
         &self,
-        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+        open_identifiers: &HashSet<Self::Identifier>,
     ) -> Vec<Node<Self::Identifier>> {
         match self {
             Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => vec![Node {
@@ -124,7 +124,7 @@ fn get_nodes_recursive(
     open_identifiers: &HashSet<Vec<Selector>>,
     json: &Value,
     current_identifier: Vec<Selector>,
-) -> Vec<Node<Selector>> {
+) -> Vec<Node<Vec<Selector>>> {
     let depth = current_identifier.len() - 1;
     match json {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
@@ -209,7 +209,7 @@ mod tree_data_tests {
     use super::*;
 
     #[track_caller]
-    fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Selector> {
+    fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Vec<Selector>> {
         Node {
             depth: identifier.len() - 1,
             has_children,

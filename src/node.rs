@@ -11,5 +11,5 @@ pub struct Node<Identifier> {
 
     pub height: usize,
 
-    pub identifier: Vec<Identifier>,
+    pub identifier: Identifier,
 }

@@ -11,7 +11,7 @@ use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
 struct App {
-    state: TreeState<&'static str>,
+    state: TreeState<Vec<&'static str>>,
     items: Vec<TreeItem<'static, &'static str>>,
 }
 
@@ -156,7 +156,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     KeyCode::Right => app.state.key_right(),
                     KeyCode::Down => app.state.key_down(),
                     KeyCode::Up => app.state.key_up(),
-                    KeyCode::Esc => app.state.select(Vec::new()),
+                    KeyCode::Esc => app.state.select(None),
                     KeyCode::Home => app.state.select_first(),
                     KeyCode::End => app.state.select_last(),
                     KeyCode::PageDown => app.state.scroll_down(3),

@@ -10,7 +10,7 @@ pub fn flatten<Identifier>(
     open_identifiers: &HashSet<Vec<Identifier>>,
     items: &[TreeItem<'_, Identifier>],
     current: &[Identifier],
-) -> Vec<Node<Identifier>>
+) -> Vec<Node<Vec<Identifier>>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {

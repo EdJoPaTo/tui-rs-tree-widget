@@ -172,14 +172,13 @@ where
         }
         let available_height = area.height as usize;
 
-        let ensure_index_in_view =
-            if state.ensure_selected_in_view_on_next_render && !state.selected.is_empty() {
-                nodes
-                    .iter()
-                    .position(|node| node.identifier == state.selected)
-            } else {
-                None
-            };
+        let ensure_index_in_view = if state.ensure_selected_in_view_on_next_render {
+            state.selected.as_ref().and_then(|selected| {
+                nodes.iter().position(|node| &node.identifier == selected)
+            })
+        } else {
+            None
+        };
 
         // Ensure last line is still visible
         let mut start = state.offset.min(state.last_biggest_index);
@@ -230,7 +229,7 @@ where
         let blank_symbol = " ".repeat(self.highlight_symbol.width());
 
         let mut current_height = 0;
-        let has_selection = !state.selected.is_empty();
+        let has_selection = state.selected.is_some();
         #[allow(clippy::cast_possible_truncation)]
         for node in nodes.iter().skip(state.offset).take(end - start) {
             let x = area.x;
@@ -245,7 +244,7 @@ where
                 height,
             };
 
-            let is_selected = state.selected == node.identifier;
+            let is_selected = state.selected.as_ref() == Some(&node.identifier);
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
                     self.highlight_symbol
@@ -295,7 +294,7 @@ where
                 .last_rendered_identifiers
                 .push((area.y, node.identifier.clone()));
         }
-        state.last_identifiers = nodes.into_iter().map(|node| node.identifier).collect();
+        state.last_nodes = nodes;
     }
 }
 
@@ -305,7 +304,7 @@ mod render_tests {
 
     #[must_use]
     #[track_caller]
-    fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
+    fn render(width: u16, height: u16, state: &mut TreeState<Vec<&'static str>>) -> Buffer {
         let items = TreeItem::example();
         let tree = Tree::new(&items);
         let area = Rect::new(0, 0, width, height);

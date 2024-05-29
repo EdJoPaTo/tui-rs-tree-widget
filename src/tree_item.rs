@@ -211,18 +211,18 @@ impl<'text, Identifier> TreeData for Vec<TreeItem<'text, Identifier>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
-    type Identifier = Identifier;
+    type Identifier = Vec<Identifier>;
 
     fn get_nodes(
         &self,
-        open_identifiers: &HashSet<Vec<Self::Identifier>>,
+        open_identifiers: &HashSet<Self::Identifier>,
     ) -> Vec<Node<Self::Identifier>> {
         crate::flatten::flatten(open_identifiers, self, &[])
     }
 
     fn render(
         &self,
-        identifier: &[Self::Identifier],
+        identifier: &Self::Identifier,
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     ) {
