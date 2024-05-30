@@ -173,9 +173,10 @@ where
         let available_height = area.height as usize;
 
         let ensure_index_in_view = if state.ensure_selected_in_view_on_next_render {
-            state.selected.as_ref().and_then(|selected| {
-                nodes.iter().position(|node| &node.identifier == selected)
-            })
+            state
+                .selected
+                .as_ref()
+                .and_then(|selected| nodes.iter().position(|node| &node.identifier == selected))
         } else {
             None
         };
