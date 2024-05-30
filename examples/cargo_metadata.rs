@@ -2,6 +2,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, MouseEventKind};
+use jsonptr::Pointer;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
@@ -9,11 +10,11 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
 use serde_json::Value;
-use tui_tree_widget::{Selector, Tree, TreeState};
+use tui_tree_widget::{Tree, TreeState};
 
 struct App {
     metadata: Value,
-    state: TreeState<Selector>,
+    state: TreeState<Pointer>,
 }
 
 impl App {
@@ -111,7 +112,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     KeyCode::Right => app.state.key_right(),
                     KeyCode::Down => app.state.key_down(),
                     KeyCode::Up => app.state.key_up(),
-                    KeyCode::Esc => app.state.select(Vec::new()),
+                    KeyCode::Esc => app.state.select(None),
                     KeyCode::Home => app.state.select_first(),
                     KeyCode::End => app.state.select_last(),
                     KeyCode::PageDown => app.state.scroll_down(3),

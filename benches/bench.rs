@@ -1,10 +1,11 @@
 use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
+use jsonptr::{Pointer, Token};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::StatefulWidget;
-use tui_tree_widget::{Selector, Tree, TreeItem, TreeState};
+use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
 fn example_items() -> Vec<TreeItem<'static, &'static str>> {
@@ -84,7 +85,7 @@ fn metadata() -> serde_json::Value {
     metadata
 }
 
-fn open_all(state: &mut TreeState<Selector>, json: &serde_json::Value, selector: &[Selector]) {
+fn open_all(state: &mut TreeState<Pointer>, json: &serde_json::Value, selector: &Pointer) {
     match json {
         serde_json::Value::Null
         | serde_json::Value::Bool(_)
@@ -92,27 +93,28 @@ fn open_all(state: &mut TreeState<Selector>, json: &serde_json::Value, selector:
         | serde_json::Value::String(_) => {}
         serde_json::Value::Array(array) if array.is_empty() => {}
         serde_json::Value::Array(array) => {
-            state.open(selector.to_vec());
+            state.open(selector.clone());
             for (index, value) in array.iter().enumerate() {
-                let mut child_selector = selector.to_vec();
-                child_selector.push(Selector::ArrayIndex(index));
+                let mut child_selector = selector.clone();
+                child_selector.push_back(Token::new(index.to_string()));
                 open_all(state, value, &child_selector);
             }
         }
         serde_json::Value::Object(object) if object.is_empty() => {}
         serde_json::Value::Object(object) => {
-            state.open(selector.to_vec());
+            state.open(selector.clone());
             for (key, value) in object {
-                let mut child_selector = selector.to_vec();
-                child_selector.push(Selector::ObjectKey(key.clone()));
+                let mut child_selector = selector.clone();
+                child_selector.push_back(Token::new(key));
                 open_all(state, value, &child_selector);
             }
         }
     }
 }
 
-fn key(key: &str) -> Selector {
-    Selector::ObjectKey(key.to_owned())
+#[track_caller]
+fn pointer(value: &str) -> Pointer {
+    Pointer::parse(value).unwrap()
 }
 
 fn init(criterion: &mut Criterion) {
@@ -205,11 +207,11 @@ fn renders(criterion: &mut Criterion) {
 
     group.bench_function("metadata/few_open", |bencher| {
         let mut state = TreeState::default();
-        state.open(vec![key("packages")]);
-        state.open(vec![key("packages"), Selector::ArrayIndex(0)]);
-        state.open(vec![key("resolve")]);
-        state.open(vec![key("resolve"), key("nodes")]);
-        state.open(vec![key("resolve"), key("nodes"), Selector::ArrayIndex(0)]);
+        state.open(pointer("/packages"));
+        state.open(pointer("/packages/0"));
+        state.open(pointer("/resolve"));
+        state.open(pointer("/resolve/nodes"));
+        state.open(pointer("/resolve/nodes/0"));
         bencher.iter_batched(
             || Buffer::empty(buffer_size),
             |mut buffer| {
@@ -225,7 +227,7 @@ fn renders(criterion: &mut Criterion) {
 
     group.bench_function("metadata/all_open", |bencher| {
         let mut state = TreeState::default();
-        open_all(&mut state, &metadata, &[]);
+        open_all(&mut state, &metadata, &Pointer::root());
         bencher.iter_batched(
             || Buffer::empty(buffer_size),
             |mut buffer| {

@@ -11,15 +11,13 @@ use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
-pub use crate::identifier::Selector;
 pub use crate::node::Node;
 pub use crate::tree_data::TreeData;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
 
 mod flatten;
-mod identifier;
-#[cfg(feature = "serde_json")]
+#[cfg(feature = "json")]
 pub mod json;
 mod node;
 mod tree_data;
@@ -94,7 +92,9 @@ where
             node_no_children_symbol: "  ",
         }
     }
+}
 
+impl<'a, Data> Tree<'a, Data> {
     #[allow(clippy::missing_const_for_fn)]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);

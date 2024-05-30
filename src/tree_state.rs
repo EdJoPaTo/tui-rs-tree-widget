@@ -60,7 +60,7 @@ where
     /// ```rust
     /// # use tui_tree_widget::TreeState;
     /// # let mut state = TreeState::<usize>::default();
-    /// state.select(Vec::new());
+    /// state.select(None);
     /// ```
     pub fn select(&mut self, identifier: Option<Identifier>) -> bool {
         self.ensure_selected_in_view_on_next_render = true;

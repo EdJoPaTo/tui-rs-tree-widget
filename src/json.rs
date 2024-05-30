@@ -1,12 +1,11 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
 
+use jsonptr::{Pointer, Token};
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use serde_json::Value;
 
-use super::select;
-use crate::identifier::Selector;
 use crate::{Node, TreeData};
 
 fn get_value_span(value: &Value) -> Span {
@@ -56,7 +55,7 @@ fn get_value_span(value: &Value) -> Span {
 }
 
 impl TreeData for Value {
-    type Identifier = String;
+    type Identifier = Pointer;
 
     fn get_nodes(
         &self,
@@ -67,16 +66,16 @@ impl TreeData for Value {
                 depth: 0,
                 has_children: false,
                 height: 1,
-                identifier: vec![Selector::None],
+                identifier: Pointer::root(),
             }],
-            Self::Array(array) => get_array_nodes(open_identifiers, array, &[]),
-            Self::Object(object) => get_object_nodes(open_identifiers, object, &[]),
+            Self::Array(array) => get_array_nodes(open_identifiers, array, &Pointer::root()),
+            Self::Object(object) => get_object_nodes(open_identifiers, object, &Pointer::root()),
         }
     }
 
     fn render(
         &self,
-        identifier: &[Self::Identifier],
+        identifier: &Self::Identifier,
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     ) {
@@ -88,32 +87,26 @@ impl TreeData for Value {
             style: Style::new().fg(Color::DarkGray),
         };
 
-        let Some(key) = identifier.last() else {
-            return;
-        };
-        let Some(value) = select(self, identifier) else {
+        let Ok(value) = identifier.resolve(self) else {
             return;
         };
 
+        let mut parent = identifier.clone();
+        parent.pop_back();
+        let parent_is_array = parent.resolve(self).is_ok_and(Self::is_array);
+
         let value_span = get_value_span(value);
-        let spans = match key {
-            Selector::ObjectKey(ref key) => vec![
+        let spans = if let Some(key) = identifier.last() {
+            vec![
                 Span {
-                    content: Cow::Owned(key.clone()),
-                    style: KEY,
+                    content: Cow::Owned(key.as_key().to_owned()),
+                    style: if parent_is_array { INDEX } else { KEY },
                 },
                 NAME_SEPARATOR,
                 value_span,
-            ],
-            Selector::ArrayIndex(index) => vec![
-                Span {
-                    content: Cow::Owned(index.to_string()),
-                    style: INDEX,
-                },
-                NAME_SEPARATOR,
-                value_span,
-            ],
-            Selector::None => vec![value_span],
+            ]
+        } else {
+            vec![value_span]
         };
         let text = Line::from(spans);
         ratatui::widgets::Widget::render(&text, area, buffer);
@@ -121,11 +114,11 @@ impl TreeData for Value {
 }
 
 fn get_nodes_recursive(
-    open_identifiers: &HashSet<Vec<Selector>>,
+    open_identifiers: &HashSet<Pointer>,
     json: &Value,
-    current_identifier: Vec<Selector>,
-) -> Vec<Node<Vec<Selector>>> {
-    let depth = current_identifier.len() - 1;
+    current_identifier: Pointer,
+) -> Vec<Node<Pointer>> {
+    let depth = current_identifier.count() - 1;
     match json {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
             depth,
@@ -169,39 +162,40 @@ fn get_nodes_recursive(
 }
 
 fn get_object_nodes(
-    open_identifiers: &HashSet<Vec<Selector>>,
+    open_identifiers: &HashSet<Pointer>,
     object: &serde_json::Map<String, Value>,
-    current_identifier: &[Selector],
-) -> Vec<Node<Selector>> {
+    current_identifier: &Pointer,
+) -> Vec<Node<Pointer>> {
     object
         .iter()
         .flat_map(|(key, value)| {
-            let mut child_identifier = current_identifier.to_vec();
-            child_identifier.push(Selector::ObjectKey(key.clone()));
+            let mut child_identifier = current_identifier.clone();
+            child_identifier.push_back(Token::new(key));
             get_nodes_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }
 
 fn get_array_nodes(
-    open_identifiers: &HashSet<Vec<Selector>>,
+    open_identifiers: &HashSet<Pointer>,
     array: &[Value],
-    current_identifier: &[Selector],
-) -> Vec<Node<Selector>> {
+    current_identifier: &Pointer,
+) -> Vec<Node<Pointer>> {
     array
         .iter()
         .enumerate()
         .flat_map(|(index, value)| {
-            let mut child_identifier = current_identifier.to_vec();
-            child_identifier.push(Selector::ArrayIndex(index));
+            let mut child_identifier = current_identifier.clone();
+            child_identifier.push_back(Token::new(index.to_string()));
             get_nodes_recursive(open_identifiers, value, child_identifier)
         })
         .collect()
 }
 
 #[cfg(test)]
-fn key(key: &str) -> Selector {
-    Selector::ObjectKey(key.to_owned())
+#[track_caller]
+fn pointer(value: &str) -> Pointer {
+    Pointer::parse(value).unwrap()
 }
 
 #[cfg(test)]
@@ -209,20 +203,33 @@ mod tree_data_tests {
     use super::*;
 
     #[track_caller]
-    fn node(identifier: Vec<Selector>, has_children: bool) -> Node<Vec<Selector>> {
+    fn node(pointer: &str, has_children: bool) -> Node<Pointer> {
+        let pointer = Pointer::parse(pointer).unwrap();
         Node {
-            depth: identifier.len() - 1,
+            depth: pointer.count().saturating_sub(1),
             has_children,
             height: 1,
-            identifier,
+            identifier: pointer,
         }
     }
 
+    #[test]
+    fn node_helper_works() {
+        let result = node("/foo/bar", false);
+        let expected = Node {
+            depth: 1,
+            has_children: false,
+            height: 1,
+            identifier: Pointer::new(["foo", "bar"]),
+        };
+        assert_eq!(result, expected);
+    }
+
     #[track_caller]
-    fn case(input: &str) -> Vec<Node<Selector>> {
+    fn case(input: &str) -> Vec<Node<Pointer>> {
         let mut open = HashSet::new();
-        open.insert(vec![key("foo")]);
-        open.insert(vec![key("foo"), key("bar")]);
+        open.insert(Pointer::parse("/foo").unwrap());
+        open.insert(Pointer::parse("/foo/bar").unwrap());
 
         let json: Value = serde_json::from_str(input).expect("invalid JSON string");
         json.get_nodes(&open)
@@ -240,28 +247,19 @@ mod tree_data_tests {
 
     #[test]
     fn number_has_single_node() {
-        assert_eq!(case("42"), [node(vec![Selector::None], false)]);
+        assert_eq!(case("42"), [node("", false)]);
     }
 
     #[test]
     fn root_array_has_multiple_nodes() {
-        assert_eq!(
-            case("[13, 37]"),
-            [
-                node(vec![Selector::ArrayIndex(0)], false),
-                node(vec![Selector::ArrayIndex(1)], false),
-            ]
-        );
+        assert_eq!(case("[13, 37]"), [node("/0", false), node("/1", false),]);
     }
 
     #[test]
     fn root_object_has_multiple_nodes() {
         assert_eq!(
             case(r#"{"foo": "bar", "something": true}"#),
-            [
-                node(vec![key("foo")], false),
-                node(vec![key("something")], false),
-            ]
+            [node("/foo", false), node("/something", false),]
         );
     }
 
@@ -270,11 +268,11 @@ mod tree_data_tests {
         assert_eq!(
             case(r#"{"foo": {"bar": [13, 37]}, "something": [42]}"#),
             [
-                node(vec![key("foo")], true),             // open
-                node(vec![key("foo"), key("bar")], true), // open
-                node(vec![key("foo"), key("bar"), Selector::ArrayIndex(0)], false),
-                node(vec![key("foo"), key("bar"), Selector::ArrayIndex(1)], false),
-                node(vec![key("something")], true),
+                node("/foo", true),     // open
+                node("/foo/bar", true), // open
+                node("/foo/bar/0", false),
+                node("/foo/bar/1", false),
+                node("/something", true),
             ]
         );
     }
@@ -291,7 +289,7 @@ mod render_tests {
     /// Strips colors after render
     #[must_use]
     #[track_caller]
-    fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Selector>) -> Buffer {
+    fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Pointer>) -> Buffer {
         let json: Value = serde_json::from_str(json).expect("invalid test JSON");
         let tree = Tree::new(&json).highlight_symbol(">> ");
         let area = Rect::new(0, 0, width, height);
@@ -342,8 +340,8 @@ mod render_tests {
     #[test]
     fn bigger_example() {
         let mut state = TreeState::default();
-        state.open(vec![key("foo")]);
-        state.open(vec![key("foo"), key("bar")]);
+        state.open(pointer("/foo"));
+        state.open(pointer("/foo/bar"));
 
         let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
         let buffer = render(14, 6, json, &mut state);
@@ -361,9 +359,9 @@ mod render_tests {
     #[test]
     fn bigger_example_selection() {
         let mut state = TreeState::default();
-        state.open(vec![key("foo")]);
-        state.open(vec![key("foo"), key("bar")]);
-        state.select(vec![key("foo"), key("bar"), Selector::ArrayIndex(1)]);
+        state.open(pointer("/foo"));
+        state.open(pointer("/foo/bar"));
+        state.select(Some(pointer("/foo/bar/1")));
 
         let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
         let buffer = render(17, 6, json, &mut state);
