@@ -19,9 +19,8 @@ pub use crate::tree_state::TreeState;
 
 mod flatten;
 mod generic_tree_item;
-#[cfg(feature = "json")]
-mod json;
 mod node;
+mod third_party;
 mod tree_data;
 mod tree_item;
 mod tree_state;
