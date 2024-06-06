@@ -11,12 +11,14 @@ use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
+pub use crate::generic_tree_item::GenericTreeItem;
 pub use crate::node::Node;
 pub use crate::tree_data::TreeData;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
 
 mod flatten;
+mod generic_tree_item;
 #[cfg(feature = "json")]
 mod json;
 mod node;

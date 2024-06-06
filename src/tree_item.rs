@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use ratatui::text::Text;
 
-use crate::{Node, TreeData};
+use crate::GenericTreeItem;
 
 /// One item inside a [`Tree`](crate::Tree).
 ///
@@ -86,17 +86,6 @@ where
         })
     }
 
-    /// Get a reference to the identifier.
-    #[must_use]
-    pub const fn identifier(&self) -> &Identifier {
-        &self.identifier
-    }
-
-    #[must_use]
-    pub fn children(&self) -> &[Self] {
-        &self.children
-    }
-
     /// Get a reference to a child by index.
     #[must_use]
     pub fn child(&self, index: usize) -> Option<&Self> {
@@ -109,11 +98,6 @@ where
     #[must_use]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
-    }
-
-    #[must_use]
-    pub fn height(&self) -> usize {
-        self.text.height()
     }
 
     /// Add a child to the `TreeItem`.
@@ -182,53 +166,25 @@ fn tree_item_add_child_errors_with_duplicate_identifiers() {
     root.add_child(another).unwrap();
 }
 
-fn get_item_direct<'root, 'text, Identifier>(
-    root: &'root [TreeItem<'text, Identifier>],
-    identifier: &Identifier,
-) -> Option<&'root TreeItem<'text, Identifier>>
-where
-    Identifier: PartialEq,
-{
-    root.iter().find(|item| &item.identifier == identifier)
-}
-
-fn get_item<'root, 'text, Identifier>(
-    root: &'root [TreeItem<'text, Identifier>],
-    identifier: &[Identifier],
-) -> Option<&'root TreeItem<'text, Identifier>>
-where
-    Identifier: PartialEq,
-{
-    let mut identifier = identifier.iter();
-    let mut current = get_item_direct(root, identifier.next()?)?;
-    for identifier in identifier {
-        current = get_item_direct(&current.children, identifier)?;
-    }
-    Some(current)
-}
-
-impl<'text, Identifier> TreeData for Vec<TreeItem<'text, Identifier>>
+impl<'text, Identifier> GenericTreeItem for TreeItem<'text, Identifier>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
-    type Identifier = Vec<Identifier>;
+    type Identifier = Identifier;
 
-    fn get_nodes(
-        &self,
-        open_identifiers: &HashSet<Self::Identifier>,
-    ) -> Vec<Node<Self::Identifier>> {
-        crate::flatten::flatten(open_identifiers, self, &[])
+    fn identifier(&self) -> &Self::Identifier {
+        &self.identifier
     }
 
-    fn render(
-        &self,
-        identifier: &Self::Identifier,
-        area: ratatui::layout::Rect,
-        buffer: &mut ratatui::buffer::Buffer,
-    ) {
-        let Some(item) = get_item(self, identifier) else {
-            return;
-        };
-        ratatui::widgets::Widget::render(&item.text, area, buffer);
+    fn children(&self) -> &[Self] {
+        &self.children
+    }
+
+    fn height(&self) -> usize {
+        self.text.height()
+    }
+
+    fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
+        ratatui::widgets::Widget::render(&self.text, area, buffer);
     }
 }
