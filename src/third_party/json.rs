@@ -9,10 +9,7 @@ use serde_json::Value;
 use crate::{Node, TreeData};
 
 fn get_value_span(value: &Value) -> Span {
-    const BOOL: Style = Style::new().fg(Color::Magenta);
-    const NULL: Style = Style::new().fg(Color::DarkGray);
-    const NUMBER: Style = Style::new().fg(Color::LightBlue);
-    const STRING: Style = Style::new().fg(Color::Green);
+    use super::common::{BOOL, NULL, NUMBER, STRING};
 
     match value {
         Value::Array(array) if array.is_empty() => Span {
@@ -79,13 +76,7 @@ impl TreeData for Value {
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     ) {
-        const KEY: Style = Style::new().fg(Color::Blue);
-        const INDEX: Style = Style::new().fg(Color::Cyan);
-
-        const NAME_SEPARATOR: Span = Span {
-            content: Cow::Borrowed(": "),
-            style: Style::new().fg(Color::DarkGray),
-        };
+        use super::common::{INDEX, KEY, NAME_SEPARATOR};
 
         let Ok(value) = identifier.resolve(self) else {
             return;

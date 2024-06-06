@@ -20,7 +20,7 @@ pub use crate::tree_state::TreeState;
 mod flatten;
 mod generic_tree_item;
 mod node;
-mod third_party;
+pub mod third_party;
 mod tree_data;
 mod tree_item;
 mod tree_state;
