@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
@@ -206,6 +206,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         if crossterm::event::poll(timeout)? {
             let update = match crossterm::event::read()? {
                 Event::Key(key) => match key.code {
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        return Ok(())
+                    }
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
                     KeyCode::Left => app.state.key_left(),
