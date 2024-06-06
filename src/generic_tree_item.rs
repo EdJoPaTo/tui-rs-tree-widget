@@ -2,10 +2,17 @@ use std::collections::HashSet;
 
 use crate::{Node, TreeData};
 
+/// Recursive generic tree item which can have children being of the same type.
+///
+/// Implements [`TreeData`] for `Vec<GenericTreeItem>`.
 pub trait GenericTreeItem
 where
     Self: Sized,
 {
+    /// Identifier of the current Item, which needs to be unique within the current depth.
+    ///
+    /// The relation of this Identifier to [`TreeData::Identifier`](crate::TreeData::Identifier) is
+    /// `TreeData::Identifier = Vec<GenericTreeItem::Identifier>`.
     type Identifier: Clone + PartialEq + Eq + core::hash::Hash;
 
     #[must_use]

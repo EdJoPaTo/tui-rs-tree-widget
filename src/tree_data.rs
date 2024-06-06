@@ -2,6 +2,10 @@ use std::collections::HashSet;
 
 use crate::Node;
 
+/// Something that can be displayed via the [`Tree`](crate::Tree) widget.
+///
+/// Either implement this trait or [`GenericTreeItem`](crate::GenericTreeItem), depending on your use case.
+/// While this trait allows for more freedom with the [`Identifier`](TreeData::Identifier) the [`GenericTreeItem`](crate::GenericTreeItem) is made especially for recursive data structures.
 pub trait TreeData
 where
     Self: Sized,
