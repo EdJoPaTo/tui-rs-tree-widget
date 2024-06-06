@@ -7,12 +7,84 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
-use tui_tree_widget::{Tree, TreeItem, TreeState};
+use tui_tree_widget::{GenericTreeItem, Tree,  TreeState};
+
+const fn nato_phonetic(letter: char) -> Option<&'static str> {
+    let word = match letter {
+        'a' => "Alfa",
+        'b' => "Bravo",
+        'c' => "Charlie",
+        'd' => "Delta",
+        'e' => "Echo",
+        'f' => "Foxtrot",
+        'g' => "Golf",
+        'h' => "Hotel",
+        'i' => "India",
+        'j' => "Juliett",
+        'k' => "Kilo",
+        'l' => "Lima",
+        'm' => "Mike",
+        'n' => "November",
+        'o' => "Oscar",
+        'p' => "Papa",
+        'q' => "Quebec",
+        'r' => "Romeo",
+        's' => "Sierra",
+        't' => "Tango",
+        'u' => "Uniform",
+        'v' => "Victor",
+        'w' => "Whiskey",
+        'x' => "Xray",
+        'y' => "Yankee",
+        'z' => "Zulu",
+        _ => return None,
+    };
+    Some(word)
+}
+
+struct Item {
+    letter: char,
+    children: Vec<Self>,
+}
+
+impl Item {
+    const fn new_leaf(letter: char) -> Self {
+        Self::new(letter, Vec::new())
+    }
+
+    const fn new(letter: char, children: Vec<Self>) -> Self {
+        Self { letter, children }
+    }
+}
+
+impl GenericTreeItem for Item {
+    type Identifier = char;
+
+    fn identifier(&self) -> &Self::Identifier {
+        &self.letter
+    }
+
+    fn children(&self) -> &[Self] {
+        &self.children
+    }
+
+    fn height(&self) -> usize {
+        1
+    }
+
+    fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
+        if let Some(word) = nato_phonetic(self.letter) {
+            ratatui::widgets::Widget::render(word, area, buffer);
+        } else {
+            ratatui::widgets::Widget::render(self.letter.to_string(), area, buffer);
+        }
+    }
+}
 
 #[must_use]
 struct App {
-    state: TreeState<Vec<&'static str>>,
-    items: Vec<TreeItem<'static, &'static str>>,
+    state: TreeState<Vec<char>>,
+    items: Vec<Item>,
 }
 
 impl App {
@@ -20,62 +92,46 @@ impl App {
         Self {
             state: TreeState::default(),
             items: vec![
-                TreeItem::new_leaf("a", "Alfa"),
-                TreeItem::new(
-                    "b",
-                    "Bravo",
+                Item::new_leaf('a'),
+                Item::new(
+                    'b',
                     vec![
-                        TreeItem::new_leaf("c", "Charlie"),
-                        TreeItem::new(
-                            "d",
-                            "Delta",
+                        Item::new_leaf('c'),
+                        Item::new('d', vec![Item::new_leaf('e'), Item::new_leaf('f')]),
+                        Item::new_leaf('g'),
+                    ],
+                ),
+                Item::new_leaf('h'),
+                Item::new(
+                    'i',
+                    vec![
+                        Item::new_leaf('j'),
+                        Item::new_leaf('k'),
+                        Item::new_leaf('l'),
+                        Item::new_leaf('m'),
+                        Item::new_leaf('n'),
+                    ],
+                ),
+                Item::new_leaf('o'),
+                Item::new(
+                    'p',
+                    vec![
+                        Item::new_leaf('q'),
+                        Item::new_leaf('r'),
+                        Item::new_leaf('s'),
+                        Item::new_leaf('t'),
+                        Item::new_leaf('u'),
+                        Item::new(
+                            'v',
                             vec![
-                                TreeItem::new_leaf("e", "Echo"),
-                                TreeItem::new_leaf("f", "Foxtrot"),
+                                Item::new_leaf('w'),
+                                Item::new_leaf('x'),
+                                Item::new_leaf('y'),
                             ],
-                        )
-                        .expect("all item identifiers are unique"),
-                        TreeItem::new_leaf("g", "Golf"),
+                        ),
                     ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("h", "Hotel"),
-                TreeItem::new(
-                    "i",
-                    "India",
-                    vec![
-                        TreeItem::new_leaf("j", "Juliett"),
-                        TreeItem::new_leaf("k", "Kilo"),
-                        TreeItem::new_leaf("l", "Lima"),
-                        TreeItem::new_leaf("m", "Mike"),
-                        TreeItem::new_leaf("n", "November"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("o", "Oscar"),
-                TreeItem::new(
-                    "p",
-                    "Papa",
-                    vec![
-                        TreeItem::new_leaf("q", "Quebec"),
-                        TreeItem::new_leaf("r", "Romeo"),
-                        TreeItem::new_leaf("s", "Sierra"),
-                        TreeItem::new_leaf("t", "Tango"),
-                        TreeItem::new_leaf("u", "Uniform"),
-                        TreeItem::new(
-                            "v",
-                            "Victor",
-                            vec![
-                                TreeItem::new_leaf("w", "Whiskey"),
-                                TreeItem::new_leaf("x", "Xray"),
-                                TreeItem::new_leaf("y", "Yankee"),
-                            ],
-                        )
-                        .expect("all item identifiers are unique"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("z", "Zulu"),
+                ),
+                Item::new_leaf('z'),
             ],
         }
     }

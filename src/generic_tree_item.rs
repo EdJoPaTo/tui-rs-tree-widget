@@ -28,22 +28,17 @@ where
 }
 
 #[must_use]
-fn get_item_direct<'root, Item: GenericTreeItem>(
-    root: &'root [Item],
-    identifier: &Item::Identifier,
-) -> Option<&'root Item> {
-    root.iter().find(|item| item.identifier() == identifier)
-}
-
-#[must_use]
 fn get_item<'root, Item: GenericTreeItem>(
     root: &'root [Item],
     identifier: &[Item::Identifier],
 ) -> Option<&'root Item> {
     let mut identifier = identifier.iter();
-    let mut current = get_item_direct(root, identifier.next()?)?;
+    let initial_identifier = identifier.next()?;
+    let mut current = root
+        .iter()
+        .find(|item| item.identifier() == initial_identifier)?;
     for identifier in identifier {
-        current = get_item_direct(current.children(), identifier)?;
+        current = current.child_direct(identifier)?;
     }
     Some(current)
 }
@@ -67,5 +62,29 @@ impl<Item: GenericTreeItem> TreeData for Vec<Item> {
         if let Some(item) = get_item(self, identifier) {
             item.render(area, buffer);
         };
+    }
+}
+
+pub trait RecursiveSelect {
+    type Identifier;
+
+    fn child_direct<'root>(&'root self, identifier: &Self::Identifier) -> Option<&'root Self>;
+
+    fn child_deep<'root>(&'root self, identifier: &[Self::Identifier]) -> Option<&'root Self> {
+        let mut current = self;
+        for identifier in identifier {
+            current = current.child_direct(identifier)?;
+        }
+        Some(current)
+    }
+}
+
+impl<Item: GenericTreeItem> RecursiveSelect for Item {
+    type Identifier = Item::Identifier;
+
+    fn child_direct<'root>(&'root self, identifier: &Self::Identifier) -> Option<&'root Self> {
+        self.children()
+            .iter()
+            .find(|item| item.identifier() == identifier)
     }
 }
