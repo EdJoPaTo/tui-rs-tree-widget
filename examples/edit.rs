@@ -7,7 +7,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
-use tui_tree_widget::{GenericTreeItem, Tree,  TreeState};
+use tui_tree_widget::{get_item_mut, GenericTreeItem, RecursiveSelectMut, Tree, TreeState};
 
 const fn nato_phonetic(letter: char) -> Option<&'static str> {
     let word = match letter {
@@ -81,6 +81,19 @@ impl GenericTreeItem for Item {
     }
 }
 
+impl RecursiveSelectMut for Item {
+    type Identifier = char;
+
+    fn child_direct_mut<'root>(
+        &'root mut self,
+        identifier: &Self::Identifier,
+    ) -> Option<&'root mut Self> {
+        self.children
+            .iter_mut()
+            .find(|item| item.identifier() == identifier)
+    }
+}
+
 #[must_use]
 struct App {
     state: TreeState<Vec<char>>,
@@ -141,7 +154,7 @@ impl App {
         let widget = Tree::new(&self.items)
             .block(
                 Block::bordered()
-                    .title("Tree Widget")
+                    .title("Tree Widget - Close with Ctrl+C - Use letters / Backspace")
                     .title_bottom(format!("{:?}", self.state)),
             )
             .experimental_scrollbar(Some(
@@ -192,6 +205,7 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
     const DEBOUNCE: Duration = Duration::from_millis(20); // 50 FPS
 
@@ -220,6 +234,44 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     KeyCode::End => app.state.select_last(),
                     KeyCode::PageDown => app.state.scroll_down(3),
                     KeyCode::PageUp => app.state.scroll_up(3),
+                    KeyCode::Backspace | KeyCode::Delete => {
+                        if let Some(selected) = app.state.selected() {
+                            let mut parent = selected.clone();
+                            let letter = parent.pop().expect("Selector always contains one level");
+                            if let Some(parent) =
+                                tui_tree_widget::get_item_mut(&mut app.items, &parent)
+                            {
+                                parent.children.retain(|child| child.letter != letter);
+                            } else {
+                                app.items.retain(|child| child.letter != letter);
+                            }
+                            app.state.key_up();
+                        }
+                        true
+                    }
+                    KeyCode::Char(letter) => {
+                        fn add(parent: &mut Vec<Item>, letter: char) {
+                            // Only add not yet existing letters
+                            if parent.iter().all(|item| item.letter != letter) {
+                                parent.push(Item::new_leaf(letter));
+                            }
+                        }
+
+                        if let Some(selected) = app.state.selected() {
+                            app.state.open(selected.clone());
+                        }
+                        if let Some(parent) = app
+                            .state
+                            .selected()
+                            .and_then(|selected| get_item_mut(&mut app.items, selected))
+                            .map(|item| &mut item.children)
+                        {
+                            add(parent, letter);
+                        } else {
+                            add(&mut app.items, letter);
+                        }
+                        true
+                    }
                     _ => false,
                 },
                 Event::Mouse(mouse) => match mouse.kind {

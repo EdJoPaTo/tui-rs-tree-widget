@@ -11,8 +11,9 @@ use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
-pub use crate::generic_tree_item::{GenericTreeItem, RecursiveSelect};
+pub use crate::generic_tree_item::GenericTreeItem;
 pub use crate::node::Node;
+pub use crate::recursive_select::{get_item, get_item_mut, RecursiveSelect, RecursiveSelectMut};
 pub use crate::tree_data::TreeData;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
@@ -20,6 +21,7 @@ pub use crate::tree_state::TreeState;
 mod flatten;
 mod generic_tree_item;
 mod node;
+mod recursive_select;
 pub mod third_party;
 mod tree_data;
 mod tree_item;
