@@ -52,12 +52,12 @@ fn get_nodes_recursive(
     path: &Path,
     depth: usize,
 ) {
-    let Ok(read_dir) = path.read_dir() else {
+    let Ok(entries) = path.read_dir() else {
         return;
     };
 
-    // ignore errors
-    let entries = read_dir.flatten();
+    // Ignore errors. A real world file viewer should handle them.
+    let entries = entries.flatten();
 
     for entry in entries {
         let is_dir = entry.metadata().is_ok_and(|metadata| metadata.is_dir());
