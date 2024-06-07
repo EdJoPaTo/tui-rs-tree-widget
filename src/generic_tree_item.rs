@@ -34,7 +34,7 @@ impl<Item: GenericTreeItem> TreeData for Vec<Item> {
         &self,
         open_identifiers: &HashSet<Self::Identifier>,
     ) -> Vec<Node<Self::Identifier>> {
-        crate::flatten::flatten(open_identifiers, self, &[])
+        flatten(open_identifiers, self, &[])
     }
 
     fn render(
@@ -46,5 +46,94 @@ impl<Item: GenericTreeItem> TreeData for Vec<Item> {
         if let Some(item) = get_item(self, identifier) {
             item.render(area, buffer);
         };
+    }
+}
+
+#[must_use]
+fn flatten<Item: GenericTreeItem>(
+    open_identifiers: &HashSet<Vec<Item::Identifier>>,
+    items: &[Item],
+    current: &[Item::Identifier],
+) -> Vec<Node<Vec<Item::Identifier>>> {
+    let mut result = Vec::new();
+    for item in items {
+        let mut child_identifier = current.to_vec();
+        child_identifier.push(item.identifier().clone());
+
+        let children = item.children();
+        let has_children = !children.is_empty();
+
+        let child_result = open_identifiers
+            .contains(&child_identifier)
+            .then(|| flatten(open_identifiers, children, &child_identifier));
+
+        result.push(Node {
+            depth: child_identifier.len() - 1,
+            has_children,
+            height: item.height(),
+            identifier: child_identifier,
+        });
+
+        if let Some(mut child_result) = child_result {
+            result.append(&mut child_result);
+        }
+    }
+    result
+}
+
+#[cfg(test)]
+mod flatten_tests {
+    use super::*;
+    use crate::TreeItem;
+
+    #[test]
+    fn depth_works() {
+        let mut open = HashSet::new();
+        open.insert(vec!["b"]);
+        open.insert(vec!["b", "d"]);
+        let depths = flatten(&open, &TreeItem::example(), &[])
+            .into_iter()
+            .map(|flattened| flattened.depth)
+            .collect::<Vec<_>>();
+        assert_eq!(depths, [0, 0, 1, 1, 2, 2, 1, 0]);
+    }
+
+    fn case(open: &HashSet<Vec<&'static str>>, expected: &[&str]) {
+        let items = TreeItem::example();
+        let result = flatten(open, &items, &[]);
+        let actual = result
+            .into_iter()
+            .map(|flattened| flattened.identifier.into_iter().last().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn nothing_open_is_top_level() {
+        let open = HashSet::new();
+        case(&open, &["a", "b", "h"]);
+    }
+
+    #[test]
+    fn wrong_open_is_only_top_level() {
+        let mut open = HashSet::new();
+        open.insert(vec!["a"]);
+        open.insert(vec!["b", "d"]);
+        case(&open, &["a", "b", "h"]);
+    }
+
+    #[test]
+    fn one_is_open() {
+        let mut open = HashSet::new();
+        open.insert(vec!["b"]);
+        case(&open, &["a", "b", "c", "d", "g", "h"]);
+    }
+
+    #[test]
+    fn all_open() {
+        let mut open = HashSet::new();
+        open.insert(vec!["b"]);
+        open.insert(vec!["b", "d"]);
+        case(&open, &["a", "b", "c", "d", "e", "f", "g", "h"]);
     }
 }
