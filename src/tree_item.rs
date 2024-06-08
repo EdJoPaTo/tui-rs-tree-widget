@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use ratatui::text::Text;
 
-use crate::GenericTreeItem;
+use crate::{GenericTreeItem, RecursiveSelectMut};
 
 /// One item inside a [`Tree`](crate::Tree).
 ///
@@ -88,6 +88,7 @@ where
 
     /// Get a reference to a child by index.
     #[must_use]
+    #[deprecated = "use GenericTreeItem::child_direct"]
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
@@ -96,6 +97,7 @@ where
     ///
     /// When you choose to change the `identifier` the [`TreeState`](crate::TreeState) might not work as expected afterwards.
     #[must_use]
+    #[deprecated = "use RecursiveSelectMut::child_direct_mut"]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
     }
@@ -186,5 +188,21 @@ where
 
     fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
         ratatui::widgets::Widget::render(&self.text, area, buffer);
+    }
+}
+
+impl<'text, Identifier> RecursiveSelectMut for TreeItem<'text, Identifier>
+where
+    Identifier: PartialEq,
+{
+    type Identifier = Identifier;
+
+    fn child_direct_mut<'root>(
+        &'root mut self,
+        identifier: &Self::Identifier,
+    ) -> Option<&'root mut Self> {
+        self.children
+            .iter_mut()
+            .find(|item| &item.identifier == identifier)
     }
 }
