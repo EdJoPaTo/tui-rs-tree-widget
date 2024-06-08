@@ -7,3 +7,5 @@
 pub mod common;
 #[cfg(feature = "json")]
 pub mod json;
+#[cfg(feature = "messagepack")]
+pub mod messagepack;

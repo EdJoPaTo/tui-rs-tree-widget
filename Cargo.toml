@@ -14,6 +14,7 @@ include = ["src/**/*", "examples/**/*", "benches/**/*", "README.md"]
 [features]
 json = ["dep:serde_json"]
 jsonptr = ["dep:jsonptr", "json"]
+messagepack = ["dep:rmpv"]
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -29,6 +30,7 @@ lto = true
 [dependencies]
 jsonptr = { version = "0.4", optional = true }
 ratatui = { version = "0.26", default-features = false }
+rmpv = { version = "1", optional = true, features = ["with-serde"] }
 serde_json = { version = "1", optional = true, features = ["preserve_order"] }
 unicode-width = "0.1"
 
