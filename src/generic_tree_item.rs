@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{get_item, Node, TreeData};
+use crate::{Node, TreeData};
 
 /// Recursive generic tree item which can have children being of the same type.
 ///
@@ -25,6 +25,22 @@ where
     fn height(&self) -> usize;
 
     fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer);
+
+    #[must_use]
+    fn child_direct<'root>(&'root self, identifier: &Self::Identifier) -> Option<&'root Self> {
+        self.children()
+            .iter()
+            .find(|item| item.identifier() == identifier)
+    }
+
+    #[must_use]
+    fn child_deep<'root>(&'root self, identifier: &[Self::Identifier]) -> Option<&'root Self> {
+        let mut current = self;
+        for identifier in identifier {
+            current = current.child_direct(identifier)?;
+        }
+        Some(current)
+    }
 }
 
 impl<Item: GenericTreeItem> TreeData for Vec<Item> {
@@ -47,6 +63,22 @@ impl<Item: GenericTreeItem> TreeData for Vec<Item> {
             item.render(area, buffer);
         };
     }
+}
+
+#[must_use]
+pub fn get_item<'root, Item: GenericTreeItem>(
+    root: &'root [Item],
+    identifier: &[Item::Identifier],
+) -> Option<&'root Item> {
+    let mut identifier = identifier.iter();
+    let initial_identifier = identifier.next()?;
+    let mut current = root
+        .iter()
+        .find(|item| item.identifier() == initial_identifier)?;
+    for identifier in identifier {
+        current = current.child_direct(identifier)?;
+    }
+    Some(current)
 }
 
 #[must_use]
