@@ -1,92 +1,99 @@
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
-use ratatui::layout::{Position, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Span;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
-use tui_tree_widget::{Tree, TreeItem, TreeState};
+use tui_tree_widget::{Node, Tree, TreeData, TreeState};
 
-#[must_use]
+struct FileTreeData(PathBuf);
+
+impl TreeData for FileTreeData {
+    type Identifier = PathBuf;
+
+    fn get_nodes(
+        &self,
+        open_identifiers: &HashSet<Self::Identifier>,
+    ) -> Vec<Node<Self::Identifier>> {
+        let mut result = Vec::new();
+        get_nodes_recursive(&mut result, open_identifiers, &self.0, 0);
+        result
+    }
+
+    fn render(
+        &self,
+        identifier: &Self::Identifier,
+        area: ratatui::layout::Rect,
+        buffer: &mut ratatui::buffer::Buffer,
+    ) {
+        let mut spans = Vec::new();
+        if let Some(filename) = identifier.file_stem() {
+            spans.push(Span::raw(filename.to_string_lossy()));
+        }
+        if let Some(extension) = identifier.extension() {
+            const STYLE: Style = Style::new().fg(Color::DarkGray);
+            spans.push(Span::styled(".", STYLE));
+            spans.push(Span::styled(extension.to_string_lossy(), STYLE));
+        }
+
+        ratatui::widgets::Widget::render(Line::from(spans), area, buffer);
+    }
+}
+
+/// Collect all the (opened) filesystem entries.
+fn get_nodes_recursive(
+    result: &mut Vec<Node<PathBuf>>,
+    open_identifiers: &HashSet<PathBuf>,
+    path: &Path,
+    depth: usize,
+) {
+    let Ok(entries) = path.read_dir() else {
+        return;
+    };
+
+    // Ignore errors. A real world file viewer should handle them.
+    let entries = entries.flatten();
+
+    for entry in entries {
+        let is_dir = entry.metadata().is_ok_and(|metadata| metadata.is_dir());
+        let path = entry.path();
+
+        result.push(Node {
+            depth,
+            has_children: is_dir,
+            height: 1,
+            identifier: path.clone(),
+        });
+
+        if open_identifiers.contains(&path) {
+            get_nodes_recursive(result, open_identifiers, &path, depth + 1);
+        }
+    }
+}
+
 struct App {
-    state: TreeState<&'static str>,
-    items: Vec<TreeItem<'static, &'static str>>,
+    state: TreeState<PathBuf>,
 }
 
 impl App {
     fn new() -> Self {
         Self {
             state: TreeState::default(),
-            items: vec![
-                TreeItem::new_leaf("a", "Alfa"),
-                TreeItem::new(
-                    "b",
-                    "Bravo",
-                    vec![
-                        TreeItem::new_leaf("c", "Charlie"),
-                        TreeItem::new(
-                            "d",
-                            "Delta",
-                            vec![
-                                TreeItem::new_leaf("e", "Echo"),
-                                TreeItem::new_leaf("f", "Foxtrot"),
-                            ],
-                        )
-                        .expect("all item identifiers are unique"),
-                        TreeItem::new_leaf("g", "Golf"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("h", "Hotel"),
-                TreeItem::new(
-                    "i",
-                    "India",
-                    vec![
-                        TreeItem::new_leaf("j", "Juliett"),
-                        TreeItem::new_leaf("k", "Kilo"),
-                        TreeItem::new_leaf("l", "Lima"),
-                        TreeItem::new_leaf("m", "Mike"),
-                        TreeItem::new_leaf("n", "November"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("o", "Oscar"),
-                TreeItem::new(
-                    "p",
-                    "Papa",
-                    vec![
-                        TreeItem::new_leaf("q", "Quebec"),
-                        TreeItem::new_leaf("r", "Romeo"),
-                        TreeItem::new_leaf("s", "Sierra"),
-                        TreeItem::new_leaf("t", "Tango"),
-                        TreeItem::new_leaf("u", "Uniform"),
-                        TreeItem::new(
-                            "v",
-                            "Victor",
-                            vec![
-                                TreeItem::new_leaf("w", "Whiskey"),
-                                TreeItem::new_leaf("x", "Xray"),
-                                TreeItem::new_leaf("y", "Yankee"),
-                            ],
-                        )
-                        .expect("all item identifiers are unique"),
-                    ],
-                )
-                .expect("all item identifiers are unique"),
-                TreeItem::new_leaf("z", "Zulu"),
-            ],
         }
     }
 
     fn draw(&mut self, frame: &mut Frame) {
         let area = frame.size();
-        let widget = Tree::new(&self.items)
-            .expect("all item identifiers are unique")
+        let data = FileTreeData(Path::new(".").to_owned());
+        let widget = Tree::new(&data)
             .block(
                 Block::bordered()
-                    .title("Tree Widget")
+                    .title("File Tree")
                     .title_bottom(format!("{:?}", self.state)),
             )
             .experimental_scrollbar(Some(
@@ -151,13 +158,16 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
         if crossterm::event::poll(timeout)? {
             let update = match crossterm::event::read()? {
                 Event::Key(key) => match key.code {
+                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        return Ok(())
+                    }
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
                     KeyCode::Left => app.state.key_left(),
                     KeyCode::Right => app.state.key_right(),
                     KeyCode::Down => app.state.key_down(),
                     KeyCode::Up => app.state.key_up(),
-                    KeyCode::Esc => app.state.select(Vec::new()),
+                    KeyCode::Esc => app.state.select(None),
                     KeyCode::Home => app.state.select_first(),
                     KeyCode::End => app.state.select_last(),
                     KeyCode::PageDown => app.state.scroll_down(3),
@@ -167,9 +177,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 Event::Mouse(mouse) => match mouse.kind {
                     MouseEventKind::ScrollDown => app.state.scroll_down(1),
                     MouseEventKind::ScrollUp => app.state.scroll_up(1),
-                    MouseEventKind::Down(_button) => {
-                        app.state.click_at(Position::new(mouse.column, mouse.row))
-                    }
                     _ => false,
                 },
                 Event::Resize(_, _) => true,

@@ -5,19 +5,26 @@ Tree widget [`Tree`] is generated with [`TreeItem`]s (which itself can contain [
 The user interaction state (like the current selection) is stored in the [`TreeState`].
 */
 
-use std::collections::HashSet;
-
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
 use unicode_width::UnicodeWidthStr;
 
-pub use crate::flatten::Flattened;
+pub use crate::generic_tree_item::{get_item, GenericTreeItem};
+pub use crate::key_value_tree_item::KeyValueTreeItem;
+pub use crate::node::Node;
+pub use crate::recursive_select_mut::{get_item_mut, RecursiveSelectMut};
+pub use crate::tree_data::TreeData;
 pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
 
-mod flatten;
+mod generic_tree_item;
+mod key_value_tree_item;
+mod node;
+mod recursive_select_mut;
+pub mod third_party;
+mod tree_data;
 mod tree_item;
 mod tree_state;
 
@@ -42,9 +49,7 @@ mod tree_state;
 /// terminal.draw(|frame| {
 ///     let area = frame.size();
 ///
-///     let tree_widget = Tree::new(&items)
-///         .expect("all item identifiers are unique")
-///         .block(Block::bordered().title("Tree Widget"));
+///     let tree_widget = Tree::new(&items).block(Block::bordered().title("Tree Widget"));
 ///
 ///     frame.render_stateful_widget(tree_widget, area, &mut state);
 /// })?;
@@ -52,8 +57,8 @@ mod tree_state;
 /// ```
 #[must_use]
 #[derive(Debug, Clone)]
-pub struct Tree<'a, Identifier> {
-    items: &'a [TreeItem<'a, Identifier>],
+pub struct Tree<'a, Data> {
+    data: &'a Data,
 
     block: Option<Block<'a>>,
     scrollbar: Option<Scrollbar<'a>>,
@@ -73,29 +78,14 @@ pub struct Tree<'a, Identifier> {
     node_no_children_symbol: &'a str,
 }
 
-impl<'a, Identifier> Tree<'a, Identifier>
+impl<'a, Data> Tree<'a, Data>
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Data: TreeData,
 {
     /// Create a new `Tree`.
-    ///
-    /// # Errors
-    ///
-    /// Errors when there are duplicate identifiers in the children.
-    pub fn new(items: &'a [TreeItem<'a, Identifier>]) -> std::io::Result<Self> {
-        let identifiers = items
-            .iter()
-            .map(|item| &item.identifier)
-            .collect::<HashSet<_>>();
-        if identifiers.len() != items.len() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
-                "The items contain duplicate identifiers",
-            ));
-        }
-
-        Ok(Self {
-            items,
+    pub fn new(data: &'a Data) -> Self {
+        Self {
+            data,
             block: None,
             scrollbar: None,
             style: Style::new(),
@@ -104,9 +94,11 @@ where
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
-        })
+        }
     }
+}
 
+impl<'a, Data> Tree<'a, Data> {
     #[allow(clippy::missing_const_for_fn)]
     pub fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
@@ -154,20 +146,11 @@ where
     }
 }
 
-#[test]
-#[should_panic = "duplicate identifiers"]
-fn tree_new_errors_with_duplicate_identifiers() {
-    let item = TreeItem::new_leaf("same", "text");
-    let another = item.clone();
-    let items = [item, another];
-    let _: Tree<_> = Tree::new(&items).unwrap();
-}
-
-impl<Identifier> StatefulWidget for Tree<'_, Identifier>
+impl<Data> StatefulWidget for Tree<'_, Data>
 where
-    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+    Data: TreeData,
 {
-    type State = TreeState<Identifier>;
+    type State = TreeState<Data::Identifier>;
 
     #[allow(clippy::too_many_lines)]
     fn render(self, full_area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -186,21 +169,21 @@ where
             return;
         }
 
-        let visible = state.flatten(self.items);
-        state.last_biggest_index = visible.len().saturating_sub(1);
-        if visible.is_empty() {
+        let nodes = self.data.get_nodes(&state.opened);
+        state.last_biggest_index = nodes.len().saturating_sub(1);
+        if nodes.is_empty() {
             return;
         }
         let available_height = area.height as usize;
 
-        let ensure_index_in_view =
-            if state.ensure_selected_in_view_on_next_render && !state.selected.is_empty() {
-                visible
-                    .iter()
-                    .position(|flattened| flattened.identifier == state.selected)
-            } else {
-                None
-            };
+        let ensure_index_in_view = if state.ensure_selected_in_view_on_next_render {
+            state
+                .selected
+                .as_ref()
+                .and_then(|selected| nodes.iter().position(|node| &node.identifier == selected))
+        } else {
+            None
+        };
 
         // Ensure last line is still visible
         let mut start = state.offset.min(state.last_biggest_index);
@@ -211,11 +194,7 @@ where
 
         let mut end = start;
         let mut height = 0;
-        for item_height in visible
-            .iter()
-            .skip(start)
-            .map(|flattened| flattened.item.height())
-        {
+        for item_height in nodes.iter().skip(start).map(|node| node.height) {
             if height + item_height > available_height {
                 break;
             }
@@ -225,10 +204,10 @@ where
 
         if let Some(ensure_index_in_view) = ensure_index_in_view {
             while ensure_index_in_view >= end {
-                height += visible[end].item.height();
+                height += nodes[end].height;
                 end += 1;
                 while height > available_height {
-                    height = height.saturating_sub(visible[start].item.height());
+                    height = height.saturating_sub(nodes[start].height);
                     start += 1;
                 }
             }
@@ -238,7 +217,7 @@ where
         state.ensure_selected_in_view_on_next_render = false;
 
         if let Some(scrollbar) = self.scrollbar {
-            let mut scrollbar_state = ScrollbarState::new(visible.len().saturating_sub(height))
+            let mut scrollbar_state = ScrollbarState::new(nodes.len().saturating_sub(height))
                 .position(start)
                 .viewport_content_length(height);
             let scrollbar_area = Rect {
@@ -255,14 +234,12 @@ where
         let blank_symbol = " ".repeat(self.highlight_symbol.width());
 
         let mut current_height = 0;
-        let has_selection = !state.selected.is_empty();
+        let has_selection = state.selected.is_some();
         #[allow(clippy::cast_possible_truncation)]
-        for flattened in visible.iter().skip(state.offset).take(end - start) {
-            let Flattened { identifier, item } = flattened;
-
+        for node in nodes.iter().skip(state.offset).take(end - start) {
             let x = area.x;
             let y = area.y + current_height;
-            let height = item.height() as u16;
+            let height = node.height as u16;
             current_height += height;
 
             let area = Rect {
@@ -272,41 +249,38 @@ where
                 height,
             };
 
-            let text = &item.text;
-            let item_style = text.style;
-
-            let is_selected = state.selected == *identifier;
+            let is_selected = state.selected.as_ref() == Some(&node.identifier);
             let after_highlight_symbol_x = if has_selection {
                 let symbol = if is_selected {
                     self.highlight_symbol
                 } else {
                     &blank_symbol
                 };
-                let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, item_style);
+                let (x, _) = buf.set_stringn(x, y, symbol, area.width as usize, Style::new());
                 x
             } else {
                 x
             };
 
             let after_depth_x = {
-                let indent_width = flattened.depth() * 2;
+                let indent_width = node.depth * 2;
                 let (after_indent_x, _) = buf.set_stringn(
                     after_highlight_symbol_x,
                     y,
                     " ".repeat(indent_width),
                     indent_width,
-                    item_style,
+                    Style::new(),
                 );
-                let symbol = if item.children.is_empty() {
+                let symbol = if !node.has_children {
                     self.node_no_children_symbol
-                } else if state.opened.contains(identifier) {
+                } else if state.opened.contains(&node.identifier) {
                     self.node_open_symbol
                 } else {
                     self.node_closed_symbol
                 };
                 let max_width = area.width.saturating_sub(after_indent_x - x);
                 let (x, _) =
-                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, item_style);
+                    buf.set_stringn(after_indent_x, y, symbol, max_width as usize, Style::new());
                 x
             };
 
@@ -315,7 +289,7 @@ where
                 width: area.width.saturating_sub(after_depth_x - x),
                 ..area
             };
-            text.render(text_area, buf);
+            self.data.render(&node.identifier, text_area, buf);
 
             if is_selected {
                 buf.set_style(area, self.highlight_style);
@@ -323,22 +297,9 @@ where
 
             state
                 .last_rendered_identifiers
-                .push((area.y, identifier.clone()));
+                .push((area.y, node.identifier.clone()));
         }
-        state.last_identifiers = visible
-            .into_iter()
-            .map(|flattened| flattened.identifier)
-            .collect();
-    }
-}
-
-impl<Identifier> Widget for Tree<'_, Identifier>
-where
-    Identifier: Clone + Default + Eq + core::hash::Hash,
-{
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let mut state = TreeState::default();
-        StatefulWidget::render(self, area, buf, &mut state);
+        state.last_nodes = nodes;
     }
 }
 
@@ -348,9 +309,9 @@ mod render_tests {
 
     #[must_use]
     #[track_caller]
-    fn render(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
+    fn render(width: u16, height: u16, state: &mut TreeState<Vec<&'static str>>) -> Buffer {
         let items = TreeItem::example();
-        let tree = Tree::new(&items).unwrap();
+        let tree = Tree::new(&items);
         let area = Rect::new(0, 0, width, height);
         let mut buffer = Buffer::empty(area);
         StatefulWidget::render(tree, area, &mut buffer, state);

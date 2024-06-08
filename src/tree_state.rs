@@ -2,13 +2,11 @@ use std::collections::HashSet;
 
 use ratatui::layout::{Position, Rect};
 
-use crate::flatten::{flatten, Flattened};
-use crate::tree_item::TreeItem;
+use crate::Node;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`](crate::Tree).
 ///
-/// The generic argument `Identifier` is used to keep the state like the currently selected or opened [`TreeItem`]s in the [`TreeState`].
-/// For more information see [`TreeItem`].
+/// The generic argument [`Identifier`](crate::TreeData::Identifier) is used to keep the state like the currently selected or opened nodes in the [`TreeState`].
 ///
 /// # Example
 ///
@@ -22,16 +20,16 @@ use crate::tree_item::TreeItem;
 #[derive(Debug, Default)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
-    pub(super) opened: HashSet<Vec<Identifier>>,
-    pub(super) selected: Vec<Identifier>,
+    pub(super) opened: HashSet<Identifier>,
+    pub(super) selected: Option<Identifier>,
     pub(super) ensure_selected_in_view_on_next_render: bool,
 
     pub(super) last_area: Rect,
     pub(super) last_biggest_index: usize,
-    /// All identifiers open on last render
-    pub(super) last_identifiers: Vec<Vec<Identifier>>,
+    /// All nodes on last render
+    pub(super) last_nodes: Vec<Node<Identifier>>,
     /// Identifier rendered at `y` on last render
-    pub(super) last_rendered_identifiers: Vec<(u16, Vec<Identifier>)>,
+    pub(super) last_rendered_identifiers: Vec<(u16, Identifier)>,
 }
 
 impl<Identifier> TreeState<Identifier>
@@ -44,28 +42,13 @@ where
     }
 
     #[must_use]
-    #[deprecated = "Use self.opened()"]
-    pub fn get_all_opened(&self) -> Vec<Vec<Identifier>> {
-        self.opened.iter().cloned().collect()
-    }
-
-    #[must_use]
-    pub const fn opened(&self) -> &HashSet<Vec<Identifier>> {
+    pub const fn opened(&self) -> &HashSet<Identifier> {
         &self.opened
     }
 
     #[must_use]
-    pub fn selected(&self) -> &[Identifier] {
-        &self.selected
-    }
-
-    /// Get a flat list of all currently viewable (including by scrolling) [`TreeItem`]s with this `TreeState`.
-    #[must_use]
-    pub fn flatten<'text>(
-        &self,
-        items: &'text [TreeItem<'text, Identifier>],
-    ) -> Vec<Flattened<'text, Identifier>> {
-        flatten(&self.opened, items, &[])
+    pub const fn selected(&self) -> Option<&Identifier> {
+        self.selected.as_ref()
     }
 
     /// Selects the given identifier.
@@ -77,9 +60,9 @@ where
     /// ```rust
     /// # use tui_tree_widget::TreeState;
     /// # let mut state = TreeState::<usize>::default();
-    /// state.select(Vec::new());
+    /// state.select(None);
     /// ```
-    pub fn select(&mut self, identifier: Vec<Identifier>) -> bool {
+    pub fn select(&mut self, identifier: Option<Identifier>) -> bool {
         self.ensure_selected_in_view_on_next_render = true;
         let changed = self.selected != identifier;
         self.selected = identifier;
@@ -89,18 +72,14 @@ where
     /// Open a tree node.
     /// Returns `true` when it was closed and has been opened.
     /// Returns `false` when it was already open.
-    pub fn open(&mut self, identifier: Vec<Identifier>) -> bool {
-        if identifier.is_empty() {
-            false
-        } else {
-            self.opened.insert(identifier)
-        }
+    pub fn open(&mut self, identifier: Identifier) -> bool {
+        self.opened.insert(identifier)
     }
 
     /// Close a tree node.
     /// Returns `true` when it was open and has been closed.
     /// Returns `false` when it was already closed.
-    pub fn close(&mut self, identifier: &[Identifier]) -> bool {
+    pub fn close(&mut self, identifier: &Identifier) -> bool {
         self.opened.remove(identifier)
     }
 
@@ -109,10 +88,8 @@ where
     ///
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when an empty identifier is given.
-    pub fn toggle(&mut self, identifier: Vec<Identifier>) -> bool {
-        if identifier.is_empty() {
-            false
-        } else if self.opened.contains(&identifier) {
+    pub fn toggle(&mut self, identifier: Identifier) -> bool {
+        if self.opened.contains(&identifier) {
             self.close(&identifier)
         } else {
             self.open(identifier)
@@ -125,19 +102,19 @@ where
     /// Returns `true` when a node is opened / closed.
     /// As toggle always changes something, this only returns `false` when nothing is selected.
     pub fn toggle_selected(&mut self) -> bool {
-        if self.selected.is_empty() {
+        let Some(selected) = &self.selected else {
             return false;
-        }
+        };
 
         self.ensure_selected_in_view_on_next_render = true;
 
         // Reimplement self.close because of multiple different borrows
-        let was_open = self.opened.remove(&self.selected);
+        let was_open = self.opened.remove(selected);
         if was_open {
             return true;
         }
 
-        self.open(self.selected.clone())
+        self.open(selected.clone())
     }
 
     /// Closes all open nodes.
@@ -156,7 +133,7 @@ where
     ///
     /// Returns `true` when the selection changed.
     pub fn select_first(&mut self) -> bool {
-        let identifier = self.last_identifiers.first().cloned().unwrap_or_default();
+        let identifier = self.last_nodes.first().map(|node| node.identifier.clone());
         self.select(identifier)
     }
 
@@ -164,7 +141,7 @@ where
     ///
     /// Returns `true` when the selection changed.
     pub fn select_last(&mut self) -> bool {
-        let new_identifier = self.last_identifiers.last().cloned().unwrap_or_default();
+        let new_identifier = self.last_nodes.last().map(|node| node.identifier.clone());
         self.select(new_identifier)
     }
 
@@ -177,45 +154,9 @@ where
     pub fn select_visible_index(&mut self, new_index: usize) -> bool {
         let new_index = new_index.min(self.last_biggest_index);
         let new_identifier = self
-            .last_identifiers
+            .last_nodes
             .get(new_index)
-            .cloned()
-            .unwrap_or_default();
-        self.select(new_identifier)
-    }
-
-    /// Move the current selection with the direction/amount by the given function.
-    ///
-    /// Returns `true` when the selection changed.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use tui_tree_widget::TreeState;
-    /// # type Identifier = usize;
-    /// # let mut state = TreeState::<Identifier>::default();
-    /// // Move the selection one down
-    /// state.select_visible_relative(|current| {
-    ///     // When nothing is currently selected, select index 0
-    ///     // Otherwise select current + 1 (without panicing)
-    ///     current.map_or(0, |current| current.saturating_add(1))
-    /// });
-    /// ```
-    ///
-    /// For more examples take a look into the source code of [`key_up`](Self::key_up) or [`key_down`](Self::key_down).
-    /// They are implemented with this method.
-    #[deprecated = "renamed to select_relative"]
-    pub fn select_visible_relative<F>(&mut self, change_function: F) -> bool
-    where
-        F: FnOnce(Option<usize>) -> usize,
-    {
-        let identifiers = &self.last_identifiers;
-        let current_identifier = &self.selected;
-        let current_index = identifiers
-            .iter()
-            .position(|identifier| identifier == current_identifier);
-        let new_index = change_function(current_index).min(self.last_biggest_index);
-        let new_identifier = identifiers.get(new_index).cloned().unwrap_or_default();
+            .map(|node| node.identifier.clone());
         self.select(new_identifier)
     }
 
@@ -243,19 +184,21 @@ where
     where
         F: FnOnce(Option<usize>) -> usize,
     {
-        let identifiers = &self.last_identifiers;
-        let current_identifier = &self.selected;
-        let current_index = identifiers
+        let current_index = self
+            .last_nodes
             .iter()
-            .position(|identifier| identifier == current_identifier);
+            .position(|node| Some(&node.identifier) == self.selected.as_ref());
         let new_index = change_function(current_index).min(self.last_biggest_index);
-        let new_identifier = identifiers.get(new_index).cloned().unwrap_or_default();
+        let new_identifier = self
+            .last_nodes
+            .get(new_index)
+            .map(|node| node.identifier.clone());
         self.select(new_identifier)
     }
 
     /// Get the identifier that was rendered for the given position on last render.
     #[must_use]
-    pub fn rendered_at(&self, position: Position) -> Option<&[Identifier]> {
+    pub fn rendered_at(&self, position: Position) -> Option<&Identifier> {
         if !self.last_area.contains(position) {
             return None;
         }
@@ -264,7 +207,7 @@ where
             .iter()
             .rev()
             .find(|(y, _)| position.y >= *y)
-            .map(|(_, identifier)| identifier.as_ref())
+            .map(|(_, identifier)| identifier)
     }
 
     /// Select what was rendered at the given position on last render.
@@ -274,17 +217,17 @@ where
     /// Returns `false` when there was nothing at the given position.
     pub fn click_at(&mut self, position: Position) -> bool {
         if let Some(identifier) = self.rendered_at(position) {
-            if identifier == self.selected {
+            if Some(identifier) == self.selected.as_ref() {
                 self.toggle_selected()
             } else {
-                self.select(identifier.to_vec())
+                self.select(Some(identifier.clone()))
             }
         } else {
             false
         }
     }
 
-    /// Ensure the selected [`TreeItem`] is in view on next render
+    /// Ensure the selected node is in view on next render
     pub fn scroll_selected_into_view(&mut self) {
         self.ensure_selected_in_view_on_next_render = true;
     }
@@ -302,7 +245,7 @@ where
     /// Scroll the specified amount of lines down
     ///
     /// Returns `true` when the scroll position changed.
-    /// Returns `false` when the scrolling has reached the last [`TreeItem`].
+    /// Returns `false` when the scrolling has reached the last node.
     pub fn scroll_down(&mut self, lines: usize) -> bool {
         let before = self.offset;
         self.offset = self
@@ -339,13 +282,37 @@ where
     ///
     /// Returns `true` when the selection or the open state changed.
     pub fn key_left(&mut self) -> bool {
+        let Some(selected) = &self.selected else {
+            return false;
+        };
         self.ensure_selected_in_view_on_next_render = true;
+
         // Reimplement self.close because of multiple different borrows
-        let mut changed = self.opened.remove(&self.selected);
+        let mut changed = self.opened.remove(selected);
         if !changed {
-            // Select the parent by removing the leaf from selection
-            let popped = self.selected.pop();
-            changed = popped.is_some();
+            let selected_depth = self
+                .last_nodes
+                .iter()
+                .find(|node| node.identifier == *selected)
+                .map(|node| node.depth)
+                .filter(|depth| *depth > 0); // depth 0 doesnt have a parent
+            if let Some(selected_depth) = selected_depth {
+                let mut found_selection = false;
+                let parent = self
+                    .last_nodes
+                    .iter()
+                    .rev()
+                    .skip_while(|node| {
+                        found_selection = node.identifier == *selected;
+                        !found_selection
+                    })
+                    .find(|node| node.depth < selected_depth)
+                    .map(|node| node.identifier.clone());
+
+                changed = self.select(parent);
+            } else {
+                changed = self.select(None);
+            }
         }
         changed
     }
@@ -356,11 +323,11 @@ where
     /// Returns `true` when it was closed and has been opened.
     /// Returns `false` when it was already open or nothing being selected.
     pub fn key_right(&mut self) -> bool {
-        if self.selected.is_empty() {
-            false
-        } else {
+        if let Some(selected) = &self.selected {
             self.ensure_selected_in_view_on_next_render = true;
-            self.open(self.selected.clone())
+            self.open(selected.clone())
+        } else {
+            false
         }
     }
 }

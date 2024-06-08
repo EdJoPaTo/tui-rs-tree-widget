@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use ratatui::text::Text;
 
+use crate::{GenericTreeItem, RecursiveSelectMut};
+
 /// One item inside a [`Tree`](crate::Tree).
 ///
 /// Can have zero or more `children`.
@@ -84,19 +86,9 @@ where
         })
     }
 
-    /// Get a reference to the identifier.
-    #[must_use]
-    pub const fn identifier(&self) -> &Identifier {
-        &self.identifier
-    }
-
-    #[must_use]
-    pub fn children(&self) -> &[Self] {
-        &self.children
-    }
-
     /// Get a reference to a child by index.
     #[must_use]
+    #[deprecated = "use GenericTreeItem::child_direct"]
     pub fn child(&self, index: usize) -> Option<&Self> {
         self.children.get(index)
     }
@@ -105,13 +97,9 @@ where
     ///
     /// When you choose to change the `identifier` the [`TreeState`](crate::TreeState) might not work as expected afterwards.
     #[must_use]
+    #[deprecated = "use RecursiveSelectMut::child_direct_mut"]
     pub fn child_mut(&mut self, index: usize) -> Option<&mut Self> {
         self.children.get_mut(index)
-    }
-
-    #[must_use]
-    pub fn height(&self) -> usize {
-        self.text.height()
     }
 
     /// Add a child to the `TreeItem`.
@@ -178,4 +166,43 @@ fn tree_item_add_child_errors_with_duplicate_identifiers() {
     let another = item.clone();
     let mut root = TreeItem::new("root", "Root", vec![item]).unwrap();
     root.add_child(another).unwrap();
+}
+
+impl<'text, Identifier> GenericTreeItem for TreeItem<'text, Identifier>
+where
+    Identifier: Clone + PartialEq + Eq + core::hash::Hash,
+{
+    type Identifier = Identifier;
+
+    fn identifier(&self) -> &Self::Identifier {
+        &self.identifier
+    }
+
+    fn children(&self) -> &[Self] {
+        &self.children
+    }
+
+    fn height(&self) -> usize {
+        self.text.height()
+    }
+
+    fn render(&self, area: ratatui::layout::Rect, buffer: &mut ratatui::buffer::Buffer) {
+        ratatui::widgets::Widget::render(&self.text, area, buffer);
+    }
+}
+
+impl<'text, Identifier> RecursiveSelectMut for TreeItem<'text, Identifier>
+where
+    Identifier: PartialEq,
+{
+    type Identifier = Identifier;
+
+    fn child_direct_mut<'root>(
+        &'root mut self,
+        identifier: &Self::Identifier,
+    ) -> Option<&'root mut Self> {
+        self.children
+            .iter_mut()
+            .find(|item| &item.identifier == identifier)
+    }
 }
