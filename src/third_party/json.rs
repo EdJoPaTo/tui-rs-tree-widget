@@ -212,12 +212,12 @@ mod tree_data_tests {
     }
 
     #[test]
-    fn empty_array_has_empty_node() {
+    fn empty_array() {
         assert_eq!(case("[]"), [node([], false)]);
     }
 
     #[test]
-    fn empty_object_has_empty_node() {
+    fn empty_object() {
         assert_eq!(case("{}"), [node([], false)]);
     }
 
@@ -279,14 +279,14 @@ mod render_tests {
     }
 
     #[test]
-    fn empty_array_renders_nothing() {
+    fn empty_array() {
         let buffer = render(5, 2, "[]", &mut TreeState::default());
         let expected = Buffer::with_lines(["  [] ", ""]);
         assert_eq!(buffer, expected);
     }
 
     #[test]
-    fn empty_object_renders_nothing() {
+    fn empty_object() {
         let buffer = render(5, 2, "{}", &mut TreeState::default());
         let expected = Buffer::with_lines(["  {} ", ""]);
         assert_eq!(buffer, expected);
