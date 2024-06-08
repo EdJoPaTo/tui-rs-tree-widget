@@ -19,6 +19,7 @@ pub use crate::tree_item::TreeItem;
 pub use crate::tree_state::TreeState;
 
 mod generic_tree_item;
+mod key_value_tree_item;
 mod node;
 mod recursive_select;
 pub mod third_party;

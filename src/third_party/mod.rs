@@ -5,5 +5,5 @@
  */
 
 pub mod common;
-#[cfg(feature = "json")]
-mod json;
+#[cfg(feature = "serde_json")]
+pub mod json;

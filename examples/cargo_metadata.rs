@@ -2,7 +2,6 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
-use jsonptr::Pointer;
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
@@ -10,11 +9,12 @@ use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
 use ratatui::{Frame, Terminal};
 use serde_json::Value;
+use tui_tree_widget::third_party::json::Selector as JsonSelector;
 use tui_tree_widget::{Tree, TreeState};
 
 struct App {
     metadata: Value,
-    state: TreeState<Pointer>,
+    state: TreeState<Vec<JsonSelector>>,
 }
 
 impl App {

@@ -1,12 +1,47 @@
 use std::borrow::Cow;
-use std::collections::HashSet;
 
-use jsonptr::{Pointer, Token};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use serde_json::Value;
 
-use crate::{Node, TreeData};
+use crate::key_value_tree_item::KeyValueTreeItem;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Selector {
+    Key(String),
+    Index(usize),
+}
+
+#[cfg(test)]
+fn key(key: &str) -> Selector {
+    Selector::Key(key.to_owned())
+}
+
+#[cfg(test)]
+const fn index(index: usize) -> Selector {
+    Selector::Index(index)
+}
+
+impl Selector {
+    #[cfg(feature = "jsonptr")]
+    #[must_use]
+    pub fn as_jsonptr_token(&self) -> jsonptr::Token {
+        match self {
+            Self::Key(key) => jsonptr::Token::new(key),
+            Self::Index(index) => jsonptr::Token::new(index.to_string()),
+        }
+    }
+
+    #[cfg(feature = "jsonptr")]
+    #[must_use]
+    pub fn as_jsonptr(selector: &[Self]) -> jsonptr::Pointer {
+        let token = selector
+            .iter()
+            .map(Self::as_jsonptr_token)
+            .collect::<Vec<_>>();
+        jsonptr::Pointer::new(token)
+    }
+}
 
 fn get_value_span(value: &Value) -> Span {
     use super::common::{BOOL, NULL, NUMBER, STRING};
@@ -51,51 +86,80 @@ fn get_value_span(value: &Value) -> Span {
     }
 }
 
-impl TreeData for Value {
-    type Identifier = Pointer;
+impl KeyValueTreeItem for Value {
+    type Key = Selector;
 
-    fn get_nodes(
-        &self,
-        open_identifiers: &HashSet<Self::Identifier>,
-    ) -> Vec<Node<Self::Identifier>> {
+    fn keys_below(&self) -> Vec<Self::Key> {
         match self {
-            Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => vec![Node {
-                depth: 0,
-                has_children: false,
-                height: 1,
-                identifier: Pointer::root(),
-            }],
-            Self::Array(array) => get_array_nodes(open_identifiers, array, &Pointer::root()),
-            Self::Object(object) => get_object_nodes(open_identifiers, object, &Pointer::root()),
+            Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => Vec::new(),
+            Self::Array(array) => array
+                .iter()
+                .enumerate()
+                .map(|(index, _)| Selector::Index(index))
+                .collect(),
+            Self::Object(object) => object
+                .keys()
+                .map(|key| Selector::Key(key.to_owned()))
+                .collect(),
         }
+    }
+
+    fn has_children(&self) -> bool {
+        match self {
+            Self::Array(array) if !array.is_empty() => true,
+            Self::Object(object) if !object.is_empty() => true,
+            _ => false,
+        }
+    }
+
+    fn get_value(&self, key: &Self::Key) -> Option<&Self> {
+        match (key, self) {
+            (Selector::Key(key), Self::Object(object)) => object.get(key),
+            (Selector::Index(index), Self::Array(array)) => array.get(*index),
+            _ => None,
+        }
+    }
+
+    fn get_children(&self) -> Vec<(Self::Key, &Self)> {
+        match self {
+            Self::Null | Self::Bool(_) | Self::Number(_) | Self::String(_) => Vec::new(),
+            Self::Array(array) => array
+                .iter()
+                .enumerate()
+                .map(|(index, value)| (Selector::Index(index), value))
+                .collect(),
+            Self::Object(object) => object
+                .iter()
+                .map(|(key, value)| (Selector::Key(key.to_owned()), value))
+                .collect(),
+        }
+    }
+
+    fn height(&self) -> usize {
+        1
     }
 
     fn render(
         &self,
-        identifier: &Self::Identifier,
+        key: Option<&Self::Key>,
         area: ratatui::layout::Rect,
         buffer: &mut ratatui::buffer::Buffer,
     ) {
         use super::common::{INDEX, KEY, NAME_SEPARATOR};
 
-        let Ok(value) = identifier.resolve(self) else {
-            return;
-        };
-
-        let mut parent = identifier.clone();
-        parent.pop_back();
-        let parent_is_array = parent.resolve(self).is_ok_and(Self::is_array);
-
-        let value_span = get_value_span(value);
-        let spans = if let Some(key) = identifier.last() {
-            vec![
-                Span {
-                    content: Cow::Owned(key.as_key().to_owned()),
-                    style: if parent_is_array { INDEX } else { KEY },
+        let value_span = get_value_span(self);
+        let spans = if let Some(key) = key {
+            let key = match key {
+                Selector::Key(key) => Span {
+                    content: Cow::Borrowed(key),
+                    style: KEY,
                 },
-                NAME_SEPARATOR,
-                value_span,
-            ]
+                Selector::Index(index) => Span {
+                    content: Cow::Owned(index.to_string()),
+                    style: INDEX,
+                },
+            };
+            vec![key, NAME_SEPARATOR, value_span]
         } else {
             vec![value_span]
         };
@@ -104,153 +168,77 @@ impl TreeData for Value {
     }
 }
 
-fn get_nodes_recursive(
-    open_identifiers: &HashSet<Pointer>,
-    json: &Value,
-    current_identifier: Pointer,
-) -> Vec<Node<Pointer>> {
-    let depth = current_identifier.count() - 1;
-    match json {
-        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => vec![Node {
-            depth,
-            has_children: false,
-            height: 1,
-            identifier: current_identifier,
-        }],
-        Value::Array(array) => {
-            let mut result = Vec::new();
-            let children = open_identifiers
-                .contains(&current_identifier)
-                .then(|| get_array_nodes(open_identifiers, array, &current_identifier));
-            result.push(Node {
-                depth,
-                has_children: !array.is_empty(),
-                height: 1,
-                identifier: current_identifier,
-            });
-            if let Some(mut children) = children {
-                result.append(&mut children);
-            }
-            result
-        }
-        Value::Object(object) => {
-            let mut result = Vec::new();
-            let children = open_identifiers
-                .contains(&current_identifier)
-                .then(|| get_object_nodes(open_identifiers, object, &current_identifier));
-            result.push(Node {
-                depth,
-                has_children: !object.is_empty(),
-                height: 1,
-                identifier: current_identifier,
-            });
-            if let Some(mut children) = children {
-                result.append(&mut children);
-            }
-            result
-        }
-    }
-}
-
-fn get_object_nodes(
-    open_identifiers: &HashSet<Pointer>,
-    object: &serde_json::Map<String, Value>,
-    current_identifier: &Pointer,
-) -> Vec<Node<Pointer>> {
-    object
-        .iter()
-        .flat_map(|(key, value)| {
-            let mut child_identifier = current_identifier.clone();
-            child_identifier.push_back(Token::new(key));
-            get_nodes_recursive(open_identifiers, value, child_identifier)
-        })
-        .collect()
-}
-
-fn get_array_nodes(
-    open_identifiers: &HashSet<Pointer>,
-    array: &[Value],
-    current_identifier: &Pointer,
-) -> Vec<Node<Pointer>> {
-    array
-        .iter()
-        .enumerate()
-        .flat_map(|(index, value)| {
-            let mut child_identifier = current_identifier.clone();
-            child_identifier.push_back(Token::new(index.to_string()));
-            get_nodes_recursive(open_identifiers, value, child_identifier)
-        })
-        .collect()
-}
-
-#[cfg(test)]
-#[track_caller]
-fn pointer(value: &str) -> Pointer {
-    Pointer::parse(value).unwrap()
-}
-
 #[cfg(test)]
 mod tree_data_tests {
+    use std::collections::HashSet;
+
     use super::*;
+    use crate::{Node, TreeData};
 
     #[track_caller]
-    fn node(pointer: &str, has_children: bool) -> Node<Pointer> {
-        let pointer = Pointer::parse(pointer).unwrap();
+    fn node<V>(identifier: V, has_children: bool) -> Node<Vec<Selector>>
+    where
+        V: AsRef<[Selector]>,
+    {
+        let identifier = identifier.as_ref();
         Node {
-            depth: pointer.count().saturating_sub(1),
+            depth: identifier.len().saturating_sub(1),
             has_children,
             height: 1,
-            identifier: pointer,
+            identifier: identifier.to_vec(),
         }
     }
 
     #[test]
     fn node_helper_works() {
-        let result = node("/foo/bar", false);
+        let result = node([key("foo"), key("bar")], false);
         let expected = Node {
             depth: 1,
             has_children: false,
             height: 1,
-            identifier: Pointer::new(["foo", "bar"]),
+            identifier: vec![key("foo"), key("bar")],
         };
         assert_eq!(result, expected);
     }
 
     #[track_caller]
-    fn case(input: &str) -> Vec<Node<Pointer>> {
+    fn case(json: &str) -> Vec<Node<Vec<Selector>>> {
         let mut open = HashSet::new();
-        open.insert(Pointer::parse("/foo").unwrap());
-        open.insert(Pointer::parse("/foo/bar").unwrap());
+        open.insert(vec![key("foo")]);
+        open.insert(vec![key("foo"), key("bar")]);
 
-        let json: Value = serde_json::from_str(input).expect("invalid JSON string");
+        let json: Value = serde_json::from_str(json).expect("invalid JSON string");
         json.get_nodes(&open)
     }
 
     #[test]
-    fn empty_array_has_no_nodes() {
-        assert_eq!(case("[]"), []);
+    fn empty_array_has_empty_node() {
+        assert_eq!(case("[]"), [node([], false)]);
     }
 
     #[test]
-    fn empty_object_has_no_nodes() {
-        assert_eq!(case("{}"), []);
+    fn empty_object_has_empty_node() {
+        assert_eq!(case("{}"), [node([], false)]);
     }
 
     #[test]
     fn number_has_single_node() {
-        assert_eq!(case("42"), [node("", false)]);
+        assert_eq!(case("42"), [node([], false)]);
     }
 
     #[test]
     fn root_array_has_multiple_nodes() {
-        assert_eq!(case("[13, 37]"), [node("/0", false), node("/1", false),]);
+        assert_eq!(
+            case("[13, 37]"),
+            [node([index(0)], false), node([index(1)], false),]
+        );
     }
 
     #[test]
     fn root_object_has_multiple_nodes() {
         assert_eq!(
             case(r#"{"foo": "bar", "something": true}"#),
-            [node("/foo", false), node("/something", false),]
+            [node([key("foo")], false), node([key("something")], false),]
         );
     }
 
@@ -259,11 +247,11 @@ mod tree_data_tests {
         assert_eq!(
             case(r#"{"foo": {"bar": [13, 37]}, "something": [42]}"#),
             [
-                node("/foo", true),     // open
-                node("/foo/bar", true), // open
-                node("/foo/bar/0", false),
-                node("/foo/bar/1", false),
-                node("/something", true),
+                node([key("foo")], true),             // open
+                node([key("foo"), key("bar")], true), // open
+                node([key("foo"), key("bar"), index(0)], false),
+                node([key("foo"), key("bar"), index(1)], false),
+                node([key("something")], true),
             ]
         );
     }
@@ -280,7 +268,7 @@ mod render_tests {
     /// Strips colors after render
     #[must_use]
     #[track_caller]
-    fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Pointer>) -> Buffer {
+    fn render(width: u16, height: u16, json: &str, state: &mut TreeState<Vec<Selector>>) -> Buffer {
         let json: Value = serde_json::from_str(json).expect("invalid test JSON");
         let tree = Tree::new(&json).highlight_symbol(">> ");
         let area = Rect::new(0, 0, width, height);
@@ -292,15 +280,15 @@ mod render_tests {
 
     #[test]
     fn empty_array_renders_nothing() {
-        let buffer = render(5, 3, "[]", &mut TreeState::default());
-        let expected = Buffer::with_lines(["     "; 3]);
+        let buffer = render(5, 2, "[]", &mut TreeState::default());
+        let expected = Buffer::with_lines(["  [] ", ""]);
         assert_eq!(buffer, expected);
     }
 
     #[test]
     fn empty_object_renders_nothing() {
-        let buffer = render(5, 3, "{}", &mut TreeState::default());
-        let expected = Buffer::with_lines(["     "; 3]);
+        let buffer = render(5, 2, "{}", &mut TreeState::default());
+        let expected = Buffer::with_lines(["  {} ", ""]);
         assert_eq!(buffer, expected);
     }
 
@@ -331,8 +319,8 @@ mod render_tests {
     #[test]
     fn bigger_example() {
         let mut state = TreeState::default();
-        state.open(pointer("/foo"));
-        state.open(pointer("/foo/bar"));
+        state.open(vec![key("foo")]);
+        state.open(vec![key("foo"), key("bar")]);
 
         let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
         let buffer = render(14, 6, json, &mut state);
@@ -350,9 +338,9 @@ mod render_tests {
     #[test]
     fn bigger_example_selection() {
         let mut state = TreeState::default();
-        state.open(pointer("/foo"));
-        state.open(pointer("/foo/bar"));
-        state.select(Some(pointer("/foo/bar/1")));
+        state.open(vec![key("foo")]);
+        state.open(vec![key("foo"), key("bar")]);
+        state.select(Some(vec![key("foo"), key("bar"), index(1)]));
 
         let json = r#"{"foo": {"bar": [13, 37]}, "test": true}"#;
         let buffer = render(17, 6, json, &mut state);
