@@ -87,6 +87,7 @@ fn flatten<Item: GenericTreeItem>(
     items: &[Item],
     current: &[Item::Identifier],
 ) -> Vec<Node<Vec<Item::Identifier>>> {
+    let depth = current.len();
     let mut result = Vec::new();
     for item in items {
         let mut child_identifier = current.to_vec();
@@ -100,7 +101,7 @@ fn flatten<Item: GenericTreeItem>(
             .then(|| flatten(open_identifiers, children, &child_identifier));
 
         result.push(Node {
-            depth: child_identifier.len() - 1,
+            depth,
             has_children,
             height: item.height(),
             identifier: child_identifier,

@@ -85,6 +85,7 @@ fn flatten<Item: KeyValueTreeItem>(
     values: Vec<(Item::Key, &Item)>,
     current: &[Item::Key],
 ) -> Vec<Node<Vec<Item::Key>>> {
+    let depth = current.len();
     let mut result = Vec::new();
     for (key, value) in values {
         let mut child_identifier = current.to_vec();
@@ -95,7 +96,7 @@ fn flatten<Item: KeyValueTreeItem>(
             .then(|| flatten(open_identifiers, value.get_children(), &child_identifier));
 
         result.push(Node {
-            depth: child_identifier.len() - 1,
+            depth,
             has_children: value.has_children(),
             height: value.height(),
             identifier: child_identifier,
