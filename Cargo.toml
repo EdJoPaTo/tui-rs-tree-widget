@@ -45,7 +45,6 @@ pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 [[bench]]
 name = "bench"
 harness = false
-required-features = ["json"]
 
 [[example]]
 name = "cargo_metadata"
