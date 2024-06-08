@@ -12,6 +12,7 @@ use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget}
 use unicode_width::UnicodeWidthStr;
 
 pub use crate::generic_tree_item::{get_item, GenericTreeItem};
+pub use crate::key_value_tree_item::KeyValueTreeItem;
 pub use crate::node::Node;
 pub use crate::recursive_select_mut::{get_item_mut, RecursiveSelectMut};
 pub use crate::tree_data::TreeData;
