@@ -1,5 +1,11 @@
 use crate::{Node, TreeData};
 
+/// Tree Item implementation for key-value data structures like JSON.
+///
+/// Sadly this can not be implemented by third party crates as traits can only be implemented
+/// within the crate that defines the trait or the crate that defines the struct.
+/// The newtype pattern doesnt work here either as `get_value` returns `&Self` resulting in
+/// referencing local data.
 pub trait KeyValueTreeItem {
     type Key: Clone + PartialEq + Eq + core::hash::Hash;
 
