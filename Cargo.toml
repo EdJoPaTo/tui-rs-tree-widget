@@ -12,8 +12,8 @@ include = ["src/**/*", "examples/**/*", "benches/**/*", "README.md"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-serde_json = ["dep:serde_json"]
-jsonptr = ["dep:jsonptr", "serde_json"]
+json = ["dep:serde_json"]
+jsonptr = ["dep:jsonptr", "json"]
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -43,8 +43,8 @@ pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
 [[bench]]
 name = "bench"
 harness = false
-required-features = ["serde_json"]
+required-features = ["json"]
 
 [[example]]
 name = "cargo_metadata"
-required-features = ["serde_json"]
+required-features = ["json"]
