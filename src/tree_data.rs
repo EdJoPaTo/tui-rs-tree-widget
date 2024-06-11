@@ -30,9 +30,9 @@ where
     /// This might still be perfect for your use case.
     type Identifier: Clone + PartialEq + Eq + core::hash::Hash;
 
-    /// Returns all visible, accessable [`Node`]s in a flat `Vec`.
+    /// Returns all visible, accessible [`Node`]s in a flat `Vec`.
     ///
-    /// The top level is always accessable while nodes need to be open for their children to be visible.
+    /// The top level is always accessible while nodes need to be open for their children to be visible.
     /// Which are open/closed is stored in a [`TreeState`](crate::TreeState) which state is available here.
     fn get_nodes(
         &self,

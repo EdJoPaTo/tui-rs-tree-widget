@@ -198,7 +198,7 @@ fn renders(criterion: &mut Criterion) {
     group.finish();
 }
 
-/// Helpers for json releated benches
+/// Helpers for json related benches
 #[cfg(feature = "json")]
 mod json {
     use tui_tree_widget::third_party::json::Selector;

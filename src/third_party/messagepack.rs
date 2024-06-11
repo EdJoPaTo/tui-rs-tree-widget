@@ -1,6 +1,6 @@
 /*! `MessagePack` implementation.
  *
- * While `MessagePack` seems key-value based at first it somewhat isnt as keys can be duplicated.
+ * While `MessagePack` seems key-value based at first it somewhat isn't as keys can be duplicated.
  * Therefore `KeyValueTreeItem` can not be implemented in a good way.
  * Falling back to implementing [`TreeData`].
  */

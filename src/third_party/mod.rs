@@ -1,6 +1,6 @@
 /*! Implementations of [`TreeData`](crate::TreeData) for other crates.
  *
- * As `impl TreeData for Something` doesnt need to be public, they dont show up in rustdoc.
+ * As `impl TreeData for Something` doesn't need to be public, they don't show up in rustdoc.
  * See the Cargo.toml for available features.
  */
 
