@@ -28,7 +28,6 @@ unicode-width = "0.1"
 
 [dev-dependencies]
 criterion = "0.5"
-crossterm = "0.27"
 ratatui = "0.27"
 
 [target.'cfg(target_family = "unix")'.dev-dependencies]

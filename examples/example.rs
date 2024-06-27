@@ -1,7 +1,9 @@
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
+use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEventKind};
+use ratatui::crossterm::terminal::enable_raw_mode;
+use ratatui::crossterm::{execute, terminal};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
@@ -108,12 +110,12 @@ impl App {
 
 fn main() -> std::io::Result<()> {
     // Terminal initialization
-    crossterm::terminal::enable_raw_mode()?;
+    enable_raw_mode()?;
     let mut stdout = std::io::stdout();
-    crossterm::execute!(
+    execute!(
         stdout,
-        crossterm::terminal::EnterAlternateScreen,
-        crossterm::event::EnableMouseCapture
+        terminal::EnterAlternateScreen,
+        event::EnableMouseCapture
     )?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
 
@@ -122,11 +124,11 @@ fn main() -> std::io::Result<()> {
     let res = run_app(&mut terminal, app);
 
     // restore terminal
-    crossterm::terminal::disable_raw_mode()?;
-    crossterm::execute!(
+    terminal::disable_raw_mode()?;
+    execute!(
         terminal.backend_mut(),
-        crossterm::terminal::LeaveAlternateScreen,
-        crossterm::event::DisableMouseCapture
+        terminal::LeaveAlternateScreen,
+        event::DisableMouseCapture
     )?;
     terminal.show_cursor()?;
 
@@ -148,8 +150,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
 
     loop {
         let timeout = debounce.map_or(DEBOUNCE, |start| DEBOUNCE.saturating_sub(start.elapsed()));
-        if crossterm::event::poll(timeout)? {
-            let update = match crossterm::event::read()? {
+        if event::poll(timeout)? {
+            let update = match event::read()? {
                 Event::Key(key) => match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         return Ok(())
