@@ -2,13 +2,11 @@ use std::time::{Duration, Instant};
 
 use ratatui::backend::{Backend, CrosstermBackend};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEventKind};
-use ratatui::crossterm::terminal::enable_raw_mode;
-use ratatui::crossterm::{execute, terminal};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
-use ratatui::{Frame, Terminal};
+use ratatui::{crossterm, Frame, Terminal};
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
@@ -110,12 +108,12 @@ impl App {
 
 fn main() -> std::io::Result<()> {
     // Terminal initialization
-    enable_raw_mode()?;
+    crossterm::terminal::enable_raw_mode()?;
     let mut stdout = std::io::stdout();
-    execute!(
+    crossterm::execute!(
         stdout,
-        terminal::EnterAlternateScreen,
-        event::EnableMouseCapture
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::event::EnableMouseCapture
     )?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
 
@@ -124,11 +122,11 @@ fn main() -> std::io::Result<()> {
     let res = run_app(&mut terminal, app);
 
     // restore terminal
-    terminal::disable_raw_mode()?;
-    execute!(
+    crossterm::terminal::disable_raw_mode()?;
+    crossterm::execute!(
         terminal.backend_mut(),
-        terminal::LeaveAlternateScreen,
-        event::DisableMouseCapture
+        crossterm::terminal::LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture
     )?;
     terminal.show_cursor()?;
 
