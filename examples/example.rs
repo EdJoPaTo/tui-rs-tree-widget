@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use ratatui::backend::{Backend, CrosstermBackend};
-use ratatui::crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEventKind};
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
@@ -148,8 +148,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
 
     loop {
         let timeout = debounce.map_or(DEBOUNCE, |start| DEBOUNCE.saturating_sub(start.elapsed()));
-        if event::poll(timeout)? {
-            let update = match event::read()? {
+        if crossterm::event::poll(timeout)? {
+            let update = match crossterm::event::read()? {
                 Event::Key(key) => match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         return Ok(())
