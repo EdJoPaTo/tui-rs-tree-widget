@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::backend::{Backend, CrosstermBackend};
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers, MouseEventKind};
 use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
-use ratatui::{Frame, Terminal};
+use ratatui::{crossterm, Frame, Terminal};
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
