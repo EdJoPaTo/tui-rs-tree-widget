@@ -23,12 +23,12 @@ debug = true
 lto = true
 
 [dependencies]
-ratatui = { version = "0.27", default-features = false }
+ratatui = { version = "0.28", default-features = false }
 unicode-width = "0.1"
 
 [dev-dependencies]
 criterion = "0.5"
-ratatui = "0.27"
+ratatui = "0.28"
 
 [target.'cfg(target_family = "unix")'.dev-dependencies]
 pprof = { version = "0.13", features = ["criterion", "flamegraph"] }

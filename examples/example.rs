@@ -81,7 +81,7 @@ impl App {
     }
 
     fn draw(&mut self, frame: &mut Frame) {
-        let area = frame.size();
+        let area = frame.area();
         let widget = Tree::new(&self.items)
             .expect("all item identifiers are unique")
             .block(
@@ -198,7 +198,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                     let area = Rect {
                         y: 0,
                         height: 1,
-                        x: frame.size().width.saturating_sub(text.len() as u16),
+                        x: frame.area().width.saturating_sub(text.len() as u16),
                         width: text.len() as u16,
                     };
                     frame.render_widget(
