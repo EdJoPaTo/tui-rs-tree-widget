@@ -24,7 +24,7 @@ lto = true
 
 [dependencies]
 ratatui = { version = "0.28", default-features = false }
-unicode-width = "0.1"
+unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = "0.5"
