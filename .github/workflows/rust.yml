@@ -16,10 +16,8 @@ jobs:
   rustfmt:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: stable
           components: rustfmt
       - uses: actions/checkout@v4
       - run: cargo fmt --check --verbose
