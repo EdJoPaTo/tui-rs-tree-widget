@@ -11,7 +11,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::UnicodeWidthStr as _;
 
 pub use crate::flatten::Flattened;
 pub use crate::tree_item::TreeItem;

@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion, Throughput};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::widgets::StatefulWidget;
+use ratatui::widgets::StatefulWidget as _;
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
