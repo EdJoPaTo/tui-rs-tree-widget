@@ -31,7 +31,7 @@ criterion = "0.5"
 ratatui = "0.29"
 
 [target.'cfg(target_family = "unix")'.dev-dependencies]
-pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
+pprof = { version = "0.14", features = ["criterion", "flamegraph"] }
 
 [[bench]]
 name = "bench"
