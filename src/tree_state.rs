@@ -197,7 +197,7 @@ where
     /// // Move the selection one down
     /// state.select_visible_relative(|current| {
     ///     // When nothing is currently selected, select index 0
-    ///     // Otherwise select current + 1 (without panicing)
+    ///     // Otherwise select current + 1 (without panicking)
     ///     current.map_or(0, |current| current.saturating_add(1))
     /// });
     /// ```
@@ -232,7 +232,7 @@ where
     /// // Move the selection one down
     /// state.select_relative(|current| {
     ///     // When nothing is currently selected, select index 0
-    ///     // Otherwise select current + 1 (without panicing)
+    ///     // Otherwise select current + 1 (without panicking)
     ///     current.map_or(0, |current| current.saturating_add(1))
     /// });
     /// ```
