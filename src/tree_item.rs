@@ -90,6 +90,7 @@ where
         &self.identifier
     }
 
+    #[allow(clippy::missing_const_for_fn)] // False positive
     #[must_use]
     pub fn children(&self) -> &[Self] {
         &self.children

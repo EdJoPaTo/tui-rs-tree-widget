@@ -54,6 +54,7 @@ where
         &self.opened
     }
 
+    #[allow(clippy::missing_const_for_fn)] // False positive
     #[must_use]
     pub fn selected(&self) -> &[Identifier] {
         &self.selected
