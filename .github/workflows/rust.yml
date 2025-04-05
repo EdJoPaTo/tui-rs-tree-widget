@@ -124,6 +124,8 @@ jobs:
             os: ubuntu-latest
           - triple: riscv64gc-unknown-linux-gnu
             os: ubuntu-latest
+          - triple: wasm32-unknown-unknown
+            os: ubuntu-latest
 
           - triple: x86_64-apple-darwin
             os: macos-latest
