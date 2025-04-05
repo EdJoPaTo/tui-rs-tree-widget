@@ -1,9 +1,7 @@
-/*!
-Widget built to show Tree Data structures.
-
-Tree widget [`Tree`] is generated with [`TreeItem`]s (which itself can contain [`TreeItem`] children to form the tree structure).
-The user interaction state (like the current selection) is stored in the [`TreeState`].
-*/
+//! Widget built to show Tree Data structures.
+//!
+//! Tree widget [`Tree`] is generated with [`TreeItem`]s (which itself can contain [`TreeItem`] children to form the tree structure).
+//! The user interaction state (like the current selection) is stored in the [`TreeState`].
 
 use std::collections::HashSet;
 

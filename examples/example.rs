@@ -153,7 +153,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                 Event::Key(key) if !matches!(key.kind, KeyEventKind::Press) => false,
                 Event::Key(key) => match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        return Ok(())
+                        return Ok(());
                     }
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('\n' | ' ') => app.state.toggle_selected(),
