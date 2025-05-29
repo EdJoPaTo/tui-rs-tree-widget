@@ -331,7 +331,7 @@ where
 
 impl<Identifier> Widget for Tree<'_, Identifier>
 where
-    Identifier: Clone + Default + Eq + core::hash::Hash,
+    Identifier: Clone + Eq + core::hash::Hash,
 {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TreeState::default();

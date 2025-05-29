@@ -19,7 +19,7 @@ use crate::tree_item::TreeItem;
 /// let mut state = TreeState::<Identifier>::default();
 /// ```
 #[must_use]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TreeState<Identifier> {
     pub(super) offset: usize,
     pub(super) opened: HashSet<Vec<Identifier>>,
@@ -32,6 +32,22 @@ pub struct TreeState<Identifier> {
     pub(super) last_identifiers: Vec<Vec<Identifier>>,
     /// Identifier rendered at `y` on last render
     pub(super) last_rendered_identifiers: Vec<(u16, Vec<Identifier>)>,
+}
+
+impl<Identifier> Default for TreeState<Identifier> {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            opened: HashSet::new(),
+            selected: Vec::new(),
+            ensure_selected_in_view_on_next_render: false,
+
+            last_area: Rect::ZERO,
+            last_biggest_index: 0,
+            last_identifiers: Vec::new(),
+            last_rendered_identifiers: Vec::new(),
+        }
+    }
 }
 
 impl<Identifier> TreeState<Identifier>
