@@ -90,6 +90,12 @@ where
         &self.identifier
     }
 
+    /// Get a reference to the text.
+    #[must_use]
+    pub const fn text(&self) -> &Text<'text> {
+        &self.text
+    }
+
     #[allow(clippy::missing_const_for_fn)] // False positive
     #[must_use]
     pub fn children(&self) -> &[Self] {
