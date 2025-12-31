@@ -15,3 +15,11 @@ updates:
     groups:
       patches:
         update-types: ["patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "02:42" # UTC
+    commit-message:
+      prefix: "ci(actions):"
