@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use ratatui::layout::{Position, Rect};
 
-use crate::flatten::{flatten, Flattened};
+use crate::flatten::{Flattened, flatten};
 use crate::tree_item::TreeItem;
 
 /// Keeps the state of what is currently selected and what was opened in a [`Tree`](crate::Tree).
@@ -70,7 +70,6 @@ where
         &self.opened
     }
 
-    #[allow(clippy::missing_const_for_fn)] // False positive
     #[must_use]
     pub fn selected(&self) -> &[Identifier] {
         &self.selected
@@ -302,7 +301,7 @@ where
     }
 
     /// Ensure the selected [`TreeItem`] is in view on next render
-    pub fn scroll_selected_into_view(&mut self) {
+    pub const fn scroll_selected_into_view(&mut self) {
         self.ensure_selected_in_view_on_next_render = true;
     }
 
@@ -310,7 +309,7 @@ where
     ///
     /// Returns `true` when the scroll position changed.
     /// Returns `false` when the scrolling has reached the top.
-    pub fn scroll_up(&mut self, lines: usize) -> bool {
+    pub const fn scroll_up(&mut self, lines: usize) -> bool {
         let before = self.offset;
         self.offset = self.offset.saturating_sub(lines);
         before != self.offset

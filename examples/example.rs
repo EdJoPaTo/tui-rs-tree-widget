@@ -7,7 +7,7 @@ use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, Scrollbar, ScrollbarOrientation};
-use ratatui::{crossterm, Frame, Terminal};
+use ratatui::{Frame, Terminal, crossterm};
 use tui_tree_widget::{Tree, TreeItem, TreeState};
 
 #[must_use]
@@ -196,7 +196,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Res
                         frame.count(),
                         1.0 / last_render_took.as_secs_f64()
                     );
-                    #[allow(clippy::cast_possible_truncation)]
+                    #[expect(clippy::cast_possible_truncation)]
                     let area = Rect {
                         y: 0,
                         height: 1,

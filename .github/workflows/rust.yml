@@ -49,7 +49,7 @@ jobs:
       matrix:
         toolchain:
           - stable
-          - "1.74"
+          - "1.85"
         os:
           - ubuntu-latest
           - macos-latest
@@ -86,7 +86,7 @@ jobs:
           - stable
           - beta
           - nightly
-          - "1.74"
+          - "1.85"
         os:
           - ubuntu-latest
           - macos-latest

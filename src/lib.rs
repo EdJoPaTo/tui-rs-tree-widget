@@ -166,7 +166,7 @@ where
 {
     type State = TreeState<Identifier>;
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     fn render(self, full_area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         buf.set_style(full_area, self.style);
 
@@ -253,7 +253,7 @@ where
 
         let mut current_height = 0;
         let has_selection = !state.selected.is_empty();
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         for flattened in visible.iter().skip(state.offset).take(end - start) {
             let Flattened { identifier, item } = flattened;
 
