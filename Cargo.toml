@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/EdJoPaTo/tui-rs-tree-widget"
 authors = ["EdJoPaTo <tui-tree-widget-rust-crate@edjopato.de>"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.86"
 keywords = ["tui", "terminal", "tree", "widget"]
 categories = ["command-line-interface"]
 include = ["src/**/*", "examples/**/*", "benches/**/*", "README.md"]
@@ -29,12 +29,12 @@ debug = true
 lto = true
 
 [dependencies]
-ratatui = { version = "0.29", default-features = false }
+ratatui = { version = "0.30", default-features = false }
 unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = "0.5"
-ratatui = "0.29"
+ratatui = "0.30"
 
 [target.'cfg(target_family = "unix")'.dev-dependencies]
 pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
