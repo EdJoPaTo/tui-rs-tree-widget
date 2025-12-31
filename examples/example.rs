@@ -138,7 +138,10 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> std::io::Result<()> {
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<(), B::Error>
+where
+    B::Error: From<std::io::Error>,
+{
     const DEBOUNCE: Duration = Duration::from_millis(20); // 50 FPS
 
     let before = Instant::now();

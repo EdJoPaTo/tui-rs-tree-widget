@@ -38,7 +38,7 @@ mod tree_state;
 /// let items = vec![item];
 ///
 /// terminal.draw(|frame| {
-///     let area = frame.size();
+///     let area = frame.area();
 ///
 ///     let tree_widget = Tree::new(&items)
 ///         .expect("all item identifiers are unique")
@@ -46,7 +46,7 @@ mod tree_state;
 ///
 ///     frame.render_stateful_widget(tree_widget, area, &mut state);
 /// })?;
-/// # Ok::<(), std::io::Error>(())
+/// # Ok::<(), core::convert::Infallible>(())
 /// ```
 #[must_use]
 #[derive(Debug, Clone)]
