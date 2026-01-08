@@ -5,10 +5,12 @@
 
 use std::collections::HashSet;
 
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Style;
-use ratatui::widgets::{Block, Scrollbar, ScrollbarState, StatefulWidget, Widget};
+use ratatui_core::buffer::Buffer;
+use ratatui_core::layout::Rect;
+use ratatui_core::style::Style;
+use ratatui_core::widgets::{StatefulWidget, Widget};
+pub use ratatui_widgets::block::Block;
+pub use ratatui_widgets::scrollbar::{Scrollbar, ScrollbarState};
 use unicode_width::UnicodeWidthStr as _;
 
 pub use crate::flatten::Flattened;

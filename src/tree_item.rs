@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use ratatui::text::Text;
+use ratatui_core::text::Text;
 
 /// One item inside a [`Tree`](crate::Tree).
 ///

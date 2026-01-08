@@ -29,7 +29,8 @@ debug = true
 lto = true
 
 [dependencies]
-ratatui = { version = "0.30", default-features = false }
+ratatui-core = { version = "0.1.0", default-features = false }
+ratatui-widgets = "0.3.0"
 unicode-width = "0.2"
 
 [dev-dependencies]
