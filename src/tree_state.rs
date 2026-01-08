@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use ratatui::layout::{Position, Rect};
+use ratatui_core::layout::{Position, Rect};
 
 use crate::flatten::{Flattened, flatten};
 use crate::tree_item::TreeItem;
