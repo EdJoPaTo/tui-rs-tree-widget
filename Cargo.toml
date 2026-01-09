@@ -34,11 +34,8 @@ ratatui-widgets = "0.3.0"
 unicode-width = "0.2"
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 ratatui = "0.30"
-
-[target.'cfg(target_family = "unix")'.dev-dependencies]
-pprof = { version = "0.15", features = ["criterion", "flamegraph"] }
 
 [[bench]]
 name = "bench"
