@@ -127,4 +127,4 @@ jobs:
 
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
