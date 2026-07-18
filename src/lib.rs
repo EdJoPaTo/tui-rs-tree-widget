@@ -578,4 +578,39 @@ mod render_tests {
         ]);
         assert_eq!(buffer, expected);
     }
+
+    #[test]
+    fn indent_guides_style_and_selection() {
+        use ratatui_core::style::Color;
+
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
+        state.select(vec!["b", "d"]); // Delta, a nested row at depth 1
+
+        let items = TreeItem::example();
+        let tree = Tree::new(&items)
+            .unwrap()
+            .indent_guides(true)
+            .indent_guide_style(Style::new().fg(Color::Red))
+            .highlight_style(Style::new().fg(Color::Blue));
+        let area = Rect::new(0, 0, 18, 9);
+        let mut buffer = Buffer::empty(area);
+        StatefulWidget::render(tree, area, &mut buffer, &mut state);
+
+        // Guides are drawn regardless of selection; the highlight symbol is the
+        // default empty string, so layout matches `indent_guides_depth_two`.
+        // y=2 is "├─  Charlie" (not selected), y=3 is "├─▼ Delta" (selected).
+        let charlie_guide = buffer.cell((0_u16, 2_u16)).unwrap();
+        assert_eq!(charlie_guide.symbol(), "\u{251c}"); // '├'
+        // On a non-selected row the guide keeps `indent_guide_style`.
+        assert_eq!(charlie_guide.fg, Color::Red);
+
+        let delta_guide = buffer.cell((0_u16, 3_u16)).unwrap();
+        assert_eq!(delta_guide.symbol(), "\u{251c}"); // '├'
+        // On the selected row the full-row highlight repaints over the guide,
+        // so `highlight_style` wins. This is the expected selection behavior:
+        // the highlight bar spans the whole line, guides included.
+        assert_eq!(delta_guide.fg, Color::Blue);
+    }
 }

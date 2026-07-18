@@ -12,10 +12,12 @@ pub struct Flattened<'text, Identifier> {
     /// whether the node at that level has a following sibling.
     /// Length equals `identifier.len()`.
     ///
-    /// This drives indent guide rendering: a level with a following sibling
-    /// needs a continuing vertical line (`│`), the deepest level picks
-    /// between a branch (`├`) and a last-branch (`└`) connector.
-    pub has_next_sibling: Vec<bool>,
+    /// Crate-internal: this drives indent guide rendering (a level with a
+    /// following sibling needs a continuing vertical line `│`, the deepest
+    /// level picks between a branch `├` and a last-branch `└` connector).
+    /// Kept private so adding it is not a breaking change to the public
+    /// [`Flattened`] surface.
+    pub(crate) has_next_sibling: Vec<bool>,
     pub item: &'text TreeItem<'text, Identifier>,
 }
 
