@@ -8,6 +8,14 @@ use crate::tree_item::TreeItem;
 #[must_use]
 pub struct Flattened<'text, Identifier> {
     pub identifier: Vec<Identifier>,
+    /// For each depth level of this row's path (index 0 is the top level),
+    /// whether the node at that level has a following sibling.
+    /// Length equals `identifier.len()`.
+    ///
+    /// This drives indent guide rendering: a level with a following sibling
+    /// needs a continuing vertical line (`│`), the deepest level picks
+    /// between a branch (`├`) and a last-branch (`└`) connector.
+    pub has_next_sibling: Vec<bool>,
     pub item: &'text TreeItem<'text, Identifier>,
 }
 
@@ -21,27 +29,38 @@ impl<Identifier> Flattened<'_, Identifier> {
 
 /// Get a flat list of all visible [`TreeItem`]s.
 ///
-/// `current` starts empty: `&[]`
+/// `current` and `current_siblings` start empty: `&[]`
 #[must_use]
 pub fn flatten<'text, Identifier>(
     open_identifiers: &HashSet<Vec<Identifier>>,
     items: &'text [TreeItem<'text, Identifier>],
     current: &[Identifier],
+    current_siblings: &[bool],
 ) -> Vec<Flattened<'text, Identifier>>
 where
     Identifier: Clone + PartialEq + Eq + core::hash::Hash,
 {
     let mut result = Vec::new();
-    for item in items {
+    let last_index = items.len().saturating_sub(1);
+    for (index, item) in items.iter().enumerate() {
         let mut child_identifier = current.to_vec();
         child_identifier.push(item.identifier.clone());
 
-        let child_result = open_identifiers
-            .contains(&child_identifier)
-            .then(|| flatten(open_identifiers, &item.children, &child_identifier));
+        let mut child_siblings = current_siblings.to_vec();
+        child_siblings.push(index != last_index);
+
+        let child_result = open_identifiers.contains(&child_identifier).then(|| {
+            flatten(
+                open_identifiers,
+                &item.children,
+                &child_identifier,
+                &child_siblings,
+            )
+        });
 
         result.push(Flattened {
             identifier: child_identifier,
+            has_next_sibling: child_siblings,
             item,
         });
 
@@ -57,17 +76,42 @@ fn depth_works() {
     let mut open = HashSet::new();
     open.insert(vec!["b"]);
     open.insert(vec!["b", "d"]);
-    let depths = flatten(&open, &TreeItem::example(), &[])
+    let depths = flatten(&open, &TreeItem::example(), &[], &[])
         .into_iter()
         .map(|flattened| flattened.depth())
         .collect::<Vec<_>>();
     assert_eq!(depths, [0, 0, 1, 1, 2, 2, 1, 0]);
 }
 
+#[test]
+fn has_next_sibling_works() {
+    let mut open = HashSet::new();
+    open.insert(vec!["b"]);
+    open.insert(vec!["b", "d"]);
+    let actual = flatten(&open, &TreeItem::example(), &[], &[])
+        .into_iter()
+        .map(|flattened| flattened.has_next_sibling)
+        .collect::<Vec<_>>();
+    // Order: a, b, b/c, b/d, b/d/e, b/d/f, b/g, h
+    assert_eq!(
+        actual,
+        [
+            vec![true],              // a  (b, h follow)
+            vec![true],              // b  (h follows)
+            vec![true, true],        // b/c (b continues; d, g follow c)
+            vec![true, true],        // b/d (b continues; g follows d)
+            vec![true, true, true],  // b/d/e (b, d continue; f follows e)
+            vec![true, true, false], // b/d/f (b, d continue; f is last)
+            vec![true, false],       // b/g (b continues; g is last child of b)
+            vec![false],             // h  (last top level item)
+        ]
+    );
+}
+
 #[cfg(test)]
 fn flatten_works(open: &HashSet<Vec<&'static str>>, expected: &[&str]) {
     let items = TreeItem::example();
-    let result = flatten(open, &items, &[]);
+    let result = flatten(open, &items, &[], &[]);
     let actual = result
         .into_iter()
         .map(|flattened| flattened.identifier.into_iter().next_back().unwrap())

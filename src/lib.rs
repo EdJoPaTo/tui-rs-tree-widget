@@ -71,6 +71,20 @@ pub struct Tree<'a, Identifier> {
     node_open_symbol: &'a str,
     /// Symbol displayed in front of a node without children.
     node_no_children_symbol: &'a str,
+
+    /// When enabled, draw indent guide lines (tree branch connectors) in place
+    /// of the blank indentation. Disabled by default for backward compatibility.
+    indent_guides: bool,
+    /// Style applied to the indent guide symbols.
+    indent_guide_style: Style,
+    /// Guide drawn for an ancestor level that continues below (`│ `).
+    indent_guide_vertical_symbol: &'a str,
+    /// Connector drawn in front of an item that has following siblings (`├─`).
+    indent_guide_branch_symbol: &'a str,
+    /// Connector drawn in front of the last item at its level (`└─`).
+    indent_guide_last_branch_symbol: &'a str,
+    /// Padding drawn for an ancestor level that has ended (no vertical line).
+    indent_guide_padding_symbol: &'a str,
 }
 
 impl<'a, Identifier> Tree<'a, Identifier>
@@ -104,6 +118,12 @@ where
             node_closed_symbol: "\u{25b6} ", // Arrow to right
             node_open_symbol: "\u{25bc} ",   // Arrow down
             node_no_children_symbol: "  ",
+            indent_guides: false,
+            indent_guide_style: Style::new(),
+            indent_guide_vertical_symbol: "\u{2502} ", // "│ "
+            indent_guide_branch_symbol: "\u{251c}\u{2500}", // "├─"
+            indent_guide_last_branch_symbol: "\u{2514}\u{2500}", // "└─"
+            indent_guide_padding_symbol: "  ",
         })
     }
 
@@ -149,6 +169,59 @@ where
 
     pub const fn node_no_children_symbol(mut self, symbol: &'a str) -> Self {
         self.node_no_children_symbol = symbol;
+        self
+    }
+
+    /// Enable or disable indent guide lines.
+    ///
+    /// When enabled, the blank indentation in front of nested items is replaced
+    /// with tree branch connectors (`│`, `├─`, `└─`). Disabled by default.
+    ///
+    /// Customize the individual glyphs with [`indent_guide_vertical_symbol`](Self::indent_guide_vertical_symbol),
+    /// [`indent_guide_branch_symbol`](Self::indent_guide_branch_symbol),
+    /// [`indent_guide_last_branch_symbol`](Self::indent_guide_last_branch_symbol) and
+    /// [`indent_guide_padding_symbol`](Self::indent_guide_padding_symbol),
+    /// and their appearance with [`indent_guide_style`](Self::indent_guide_style).
+    pub const fn indent_guides(mut self, enabled: bool) -> Self {
+        self.indent_guides = enabled;
+        self
+    }
+
+    /// Style applied to the indent guide symbols.
+    pub const fn indent_guide_style(mut self, style: Style) -> Self {
+        self.indent_guide_style = style;
+        self
+    }
+
+    /// Guide drawn for an ancestor level that continues below (default `"│ "`).
+    ///
+    /// Should be two columns wide to keep items aligned across depths.
+    pub const fn indent_guide_vertical_symbol(mut self, symbol: &'a str) -> Self {
+        self.indent_guide_vertical_symbol = symbol;
+        self
+    }
+
+    /// Connector drawn in front of an item that has following siblings (default `"├─"`).
+    ///
+    /// Should be two columns wide to keep items aligned across depths.
+    pub const fn indent_guide_branch_symbol(mut self, symbol: &'a str) -> Self {
+        self.indent_guide_branch_symbol = symbol;
+        self
+    }
+
+    /// Connector drawn in front of the last item at its level (default `"└─"`).
+    ///
+    /// Should be two columns wide to keep items aligned across depths.
+    pub const fn indent_guide_last_branch_symbol(mut self, symbol: &'a str) -> Self {
+        self.indent_guide_last_branch_symbol = symbol;
+        self
+    }
+
+    /// Padding drawn for an ancestor level that has ended (default `"  "`).
+    ///
+    /// Should be two columns wide to keep items aligned across depths.
+    pub const fn indent_guide_padding_symbol(mut self, symbol: &'a str) -> Self {
+        self.indent_guide_padding_symbol = symbol;
         self
     }
 }
@@ -257,7 +330,9 @@ where
         let has_selection = !state.selected.is_empty();
         #[expect(clippy::cast_possible_truncation)]
         for flattened in visible.iter().skip(state.offset).take(end - start) {
-            let Flattened { identifier, item } = flattened;
+            let Flattened {
+                identifier, item, ..
+            } = flattened;
 
             let x = area.x;
             let y = area.y + current_height;
@@ -288,13 +363,34 @@ where
             };
 
             let after_depth_x = {
-                let indent_width = flattened.depth() * 2;
+                let depth = flattened.depth();
+                let (indent, indent_style) = if self.indent_guides && depth > 0 {
+                    let mut guides = String::new();
+                    for level in 1..=depth {
+                        let has_next_sibling = flattened.has_next_sibling[level];
+                        let guide = if level == depth {
+                            if has_next_sibling {
+                                self.indent_guide_branch_symbol
+                            } else {
+                                self.indent_guide_last_branch_symbol
+                            }
+                        } else if has_next_sibling {
+                            self.indent_guide_vertical_symbol
+                        } else {
+                            self.indent_guide_padding_symbol
+                        };
+                        guides.push_str(guide);
+                    }
+                    (guides, item_style.patch(self.indent_guide_style))
+                } else {
+                    (" ".repeat(depth * 2), item_style)
+                };
                 let (after_indent_x, _) = buf.set_stringn(
                     after_highlight_symbol_x,
                     y,
-                    " ".repeat(indent_width),
-                    indent_width,
-                    item_style,
+                    &indent,
+                    indent.width(),
+                    indent_style,
                 );
                 let symbol = if item.children.is_empty() {
                     self.node_no_children_symbol
@@ -410,6 +506,75 @@ mod render_tests {
             "    Golf       ",
             "  Hotel        ",
             "               ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[must_use]
+    #[track_caller]
+    fn render_with_guides(width: u16, height: u16, state: &mut TreeState<&'static str>) -> Buffer {
+        let items = TreeItem::example();
+        let tree = Tree::new(&items).unwrap().indent_guides(true);
+        let area = Rect::new(0, 0, width, height);
+        let mut buffer = Buffer::empty(area);
+        StatefulWidget::render(tree, area, &mut buffer, state);
+        buffer
+    }
+
+    #[test]
+    fn indent_guides_do_not_panic_when_narrow() {
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
+        // Widths narrower than the guide indentation must clamp, not panic.
+        for width in 0..8 {
+            _ = render_with_guides(width, 9, &mut state);
+        }
+    }
+
+    #[test]
+    fn indent_guides_depth_two() {
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
+        let buffer = render_with_guides(18, 9, &mut state);
+        let expected = Buffer::with_lines([
+            "  Alfa            ",
+            "▼ Bravo           ",
+            "├─  Charlie       ",
+            "├─▼ Delta         ",
+            "│ ├─  Echo        ",
+            "│ └─  Foxtrot     ",
+            "└─  Golf          ",
+            "  Hotel           ",
+            "                  ",
+        ]);
+        assert_eq!(buffer, expected);
+    }
+
+    #[test]
+    fn indent_guides_custom_symbols() {
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        let items = TreeItem::example();
+        let tree = Tree::new(&items)
+            .unwrap()
+            .indent_guides(true)
+            .indent_guide_vertical_symbol(".:")
+            .indent_guide_branch_symbol("+-")
+            .indent_guide_last_branch_symbol("\\-")
+            .indent_guide_padding_symbol("__");
+        let area = Rect::new(0, 0, 13, 7);
+        let mut buffer = Buffer::empty(area);
+        StatefulWidget::render(tree, area, &mut buffer, &mut state);
+        let expected = Buffer::with_lines([
+            "  Alfa       ",
+            "▼ Bravo      ",
+            "+-  Charlie  ",
+            "+-▶ Delta    ",
+            "\\-  Golf     ",
+            "  Hotel      ",
+            "             ",
         ]);
         assert_eq!(buffer, expected);
     }

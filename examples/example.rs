@@ -96,6 +96,8 @@ impl App {
                     .track_symbol(None)
                     .end_symbol(None),
             ))
+            .indent_guides(true)
+            .indent_guide_style(Style::new().fg(Color::DarkGray))
             .highlight_style(
                 Style::new()
                     .fg(Color::Black)
