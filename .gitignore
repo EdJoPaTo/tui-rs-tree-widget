@@ -1,1 +1,4 @@
 /target
+
+# Byproduct of `vhs media/screenshot.tape`; the committed asset is the PNG.
+/media/screenshot.gif

@@ -18,8 +18,12 @@ struct App {
 
 impl App {
     fn new() -> Self {
+        // Open two nodes, so the indent guides show at launch.
+        let mut state = TreeState::default();
+        state.open(vec!["b"]);
+        state.open(vec!["b", "d"]);
         Self {
-            state: TreeState::default(),
+            state,
             items: vec![
                 TreeItem::new_leaf("a", "Alfa"),
                 TreeItem::new(
@@ -85,17 +89,15 @@ impl App {
         let area = frame.area();
         let widget = Tree::new(&self.items)
             .expect("all item identifiers are unique")
-            .block(
-                Block::bordered()
-                    .title("Tree Widget")
-                    .title_bottom(format!("{:?}", self.state)),
-            )
+            .block(Block::bordered().title("Tree Widget"))
             .experimental_scrollbar(Some(
                 Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .begin_symbol(None)
                     .track_symbol(None)
                     .end_symbol(None),
             ))
+            .indent_guides(true)
+            .indent_guide_style(Style::new().fg(Color::Cyan))
             .highlight_style(
                 Style::new()
                     .fg(Color::Black)
