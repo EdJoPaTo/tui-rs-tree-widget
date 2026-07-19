@@ -72,18 +72,18 @@ pub struct Tree<'a, Identifier> {
     /// Symbol displayed in front of a node without children.
     node_no_children_symbol: &'a str,
 
-    /// When enabled, draw indent guide lines (tree branch connectors) in place
-    /// of the blank indentation. Disabled by default for backward compatibility.
+    /// When on, draws indent guide lines (tree branch connectors) in place of
+    /// the blank indentation. Off by default, so existing output does not change.
     indent_guides: bool,
-    /// Style applied to the indent guide symbols.
+    /// The style of the indent guide symbols.
     indent_guide_style: Style,
-    /// Guide drawn for an ancestor level that continues below (`│ `).
+    /// The guide for an ancestor level that continues below (`│ `).
     indent_guide_vertical_symbol: &'a str,
-    /// Connector drawn in front of an item that has following siblings (`├─`).
+    /// The connector for an item that has more siblings below it (`├─`).
     indent_guide_branch_symbol: &'a str,
-    /// Connector drawn in front of the last item at its level (`└─`).
+    /// The connector for the last item at its level (`└─`).
     indent_guide_last_branch_symbol: &'a str,
-    /// Padding drawn for an ancestor level that has ended (no vertical line).
+    /// The padding for an ancestor level that has ended (no vertical line).
     indent_guide_padding_symbol: &'a str,
 }
 
@@ -172,54 +172,54 @@ where
         self
     }
 
-    /// Enable or disable indent guide lines.
+    /// Turns the indent guide lines on or off.
     ///
-    /// When enabled, the blank indentation in front of nested items is replaced
-    /// with tree branch connectors (`│`, `├─`, `└─`). Disabled by default.
+    /// When on, tree branch connectors (`│`, `├─`, `└─`) replace the blank
+    /// indentation in front of nested items. The guides are off by default.
     ///
-    /// Customize the individual glyphs with [`indent_guide_vertical_symbol`](Self::indent_guide_vertical_symbol),
+    /// Set the glyphs with [`indent_guide_vertical_symbol`](Self::indent_guide_vertical_symbol),
     /// [`indent_guide_branch_symbol`](Self::indent_guide_branch_symbol),
-    /// [`indent_guide_last_branch_symbol`](Self::indent_guide_last_branch_symbol) and
-    /// [`indent_guide_padding_symbol`](Self::indent_guide_padding_symbol),
-    /// and their appearance with [`indent_guide_style`](Self::indent_guide_style).
+    /// [`indent_guide_last_branch_symbol`](Self::indent_guide_last_branch_symbol), and
+    /// [`indent_guide_padding_symbol`](Self::indent_guide_padding_symbol).
+    /// Set the appearance with [`indent_guide_style`](Self::indent_guide_style).
     pub const fn indent_guides(mut self, enabled: bool) -> Self {
         self.indent_guides = enabled;
         self
     }
 
-    /// Style applied to the indent guide symbols.
+    /// Sets the style of the indent guide symbols.
     pub const fn indent_guide_style(mut self, style: Style) -> Self {
         self.indent_guide_style = style;
         self
     }
 
-    /// Guide drawn for an ancestor level that continues below (default `"│ "`).
+    /// Sets the guide for an ancestor level that continues below (default `"│ "`).
     ///
-    /// Should be two columns wide to keep items aligned across depths.
+    /// Use a symbol that is two columns wide, so the items stay aligned.
     pub const fn indent_guide_vertical_symbol(mut self, symbol: &'a str) -> Self {
         self.indent_guide_vertical_symbol = symbol;
         self
     }
 
-    /// Connector drawn in front of an item that has following siblings (default `"├─"`).
+    /// Sets the connector for an item that has more siblings below it (default `"├─"`).
     ///
-    /// Should be two columns wide to keep items aligned across depths.
+    /// Use a symbol that is two columns wide, so the items stay aligned.
     pub const fn indent_guide_branch_symbol(mut self, symbol: &'a str) -> Self {
         self.indent_guide_branch_symbol = symbol;
         self
     }
 
-    /// Connector drawn in front of the last item at its level (default `"└─"`).
+    /// Sets the connector for the last item at its level (default `"└─"`).
     ///
-    /// Should be two columns wide to keep items aligned across depths.
+    /// Use a symbol that is two columns wide, so the items stay aligned.
     pub const fn indent_guide_last_branch_symbol(mut self, symbol: &'a str) -> Self {
         self.indent_guide_last_branch_symbol = symbol;
         self
     }
 
-    /// Padding drawn for an ancestor level that has ended (default `"  "`).
+    /// Sets the padding for an ancestor level that has ended (default `"  "`).
     ///
-    /// Should be two columns wide to keep items aligned across depths.
+    /// Use a symbol that is two columns wide, so the items stay aligned.
     pub const fn indent_guide_padding_symbol(mut self, symbol: &'a str) -> Self {
         self.indent_guide_padding_symbol = symbol;
         self
@@ -526,7 +526,7 @@ mod render_tests {
         let mut state = TreeState::default();
         state.open(vec!["b"]);
         state.open(vec!["b", "d"]);
-        // Widths narrower than the guide indentation must clamp, not panic.
+        // A width smaller than the guide indentation must clamp, not panic.
         for width in 0..8 {
             _ = render_with_guides(width, 9, &mut state);
         }
@@ -598,19 +598,19 @@ mod render_tests {
         let mut buffer = Buffer::empty(area);
         StatefulWidget::render(tree, area, &mut buffer, &mut state);
 
-        // Guides are drawn regardless of selection; the highlight symbol is the
-        // default empty string, so layout matches `indent_guides_depth_two`.
-        // y=2 is "├─  Charlie" (not selected), y=3 is "├─▼ Delta" (selected).
+        // The guides are drawn for every row. The highlight symbol is the empty
+        // string by default, so the layout matches `indent_guides_depth_two`.
+        // Row y=2 is "├─  Charlie" (not selected). Row y=3 is "├─▼ Delta" (selected).
         let charlie_guide = buffer.cell((0_u16, 2_u16)).unwrap();
         assert_eq!(charlie_guide.symbol(), "\u{251c}"); // '├'
-        // On a non-selected row the guide keeps `indent_guide_style`.
+        // On a row that is not selected, the guide keeps `indent_guide_style`.
         assert_eq!(charlie_guide.fg, Color::Red);
 
         let delta_guide = buffer.cell((0_u16, 3_u16)).unwrap();
         assert_eq!(delta_guide.symbol(), "\u{251c}"); // '├'
-        // On the selected row the full-row highlight repaints over the guide,
-        // so `highlight_style` wins. This is the expected selection behavior:
-        // the highlight bar spans the whole line, guides included.
+        // On the selected row, the full-row highlight paints over the guide, so
+        // `highlight_style` wins. This is the expected behavior. The highlight
+        // bar covers the whole line, and it includes the guide columns.
         assert_eq!(delta_guide.fg, Color::Blue);
     }
 }

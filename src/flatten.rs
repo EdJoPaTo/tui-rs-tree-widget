@@ -8,15 +8,14 @@ use crate::tree_item::TreeItem;
 #[must_use]
 pub struct Flattened<'text, Identifier> {
     pub identifier: Vec<Identifier>,
-    /// For each depth level of this row's path (index 0 is the top level),
-    /// whether the node at that level has a following sibling.
-    /// Length equals `identifier.len()`.
+    /// One flag for each depth level of this row's path. Each flag shows whether
+    /// the node at that level has a following sibling. Index 0 is the top level.
+    /// The length is equal to `identifier.len()`.
     ///
-    /// Crate-internal: this drives indent guide rendering (a level with a
-    /// following sibling needs a continuing vertical line `│`, the deepest
-    /// level picks between a branch `├` and a last-branch `└` connector).
-    /// Kept private so adding it is not a breaking change to the public
-    /// [`Flattened`] surface.
+    /// This field drives the indent guides. A level with a following sibling gets
+    /// a continuing vertical line `│`. The deepest level gets a branch `├` or a
+    /// last-branch `└` connector. The field is crate-internal, so adding it does
+    /// not break the public [`Flattened`] surface.
     pub(crate) has_next_sibling: Vec<bool>,
     pub item: &'text TreeItem<'text, Identifier>,
 }
@@ -29,9 +28,9 @@ impl<Identifier> Flattened<'_, Identifier> {
     }
 }
 
-/// Get a flat list of all visible [`TreeItem`]s.
+/// Returns a flat list of all visible [`TreeItem`]s.
 ///
-/// `current` and `current_siblings` start empty: `&[]`
+/// Start `current` and `current_siblings` empty: `&[]`.
 #[must_use]
 pub fn flatten<'text, Identifier>(
     open_identifiers: &HashSet<Vec<Identifier>>,

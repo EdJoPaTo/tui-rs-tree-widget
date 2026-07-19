@@ -18,7 +18,7 @@ struct App {
 
 impl App {
     fn new() -> Self {
-        // Open a couple of nodes so the indent guides are visible on launch.
+        // Open two nodes, so the indent guides show at launch.
         let mut state = TreeState::default();
         state.open(vec!["b"]);
         state.open(vec!["b", "d"]);
