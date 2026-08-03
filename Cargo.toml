@@ -30,12 +30,12 @@ lto = true
 
 [dependencies]
 ratatui-core = { version = "0.1.0", default-features = false }
-ratatui-widgets = "0.3.0"
+ratatui-widgets = { version = "0.3.0", default-features = false }
 unicode-width = "0.2"
 
 [dev-dependencies]
 criterion = "0.8"
-ratatui = "0.30"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 
 [[bench]]
 name = "bench"
