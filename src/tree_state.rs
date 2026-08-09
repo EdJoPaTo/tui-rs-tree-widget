@@ -81,7 +81,7 @@ where
         &self,
         items: &'text [TreeItem<'text, Identifier>],
     ) -> Vec<Flattened<'text, Identifier>> {
-        flatten(&self.opened, items, &[])
+        flatten(&self.opened, items, &[], &[])
     }
 
     /// Selects the given identifier.

@@ -85,17 +85,15 @@ impl App {
         let area = frame.area();
         let widget = Tree::new(&self.items)
             .expect("all item identifiers are unique")
-            .block(
-                Block::bordered()
-                    .title("Tree Widget")
-                    .title_bottom(format!("{:?}", self.state)),
-            )
+            .block(Block::bordered().title("Tree Widget"))
             .experimental_scrollbar(Some(
                 Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .begin_symbol(None)
                     .track_symbol(None)
                     .end_symbol(None),
             ))
+            .indent_guides(true)
+            .indent_guide_style(Style::new().fg(Color::Cyan))
             .highlight_style(
                 Style::new()
                     .fg(Color::Black)
